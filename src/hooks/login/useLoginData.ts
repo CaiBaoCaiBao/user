@@ -6,6 +6,7 @@ import { LoginDTO } from "@/api/auth"
 import { toast } from "sonner"
 import { tokenService } from "@/config/axios"
 import { useRouter } from "next/navigation"
+import { useUserActions } from "@/store/userStore"
 
 // 基础字段
 const baseSchema = z.object({
@@ -42,6 +43,7 @@ export type LoginFormData = z.infer<typeof loginSchema>
 export const useLoginData = () => {
     const [loginMethod, setLoginMethod] = React.useState<'password' | 'otp'>('password')
     const router = useRouter()
+    const { setUser } = useUserActions()
     const REGEXP_NUMERIC = "^[a-zA-Z0-9]+$";
     const loginForm = useForm({
         defaultValues: {
@@ -69,6 +71,11 @@ export const useLoginData = () => {
                 }
                 if (response.data?.refreshToken) {
                     tokenService.setRefreshToken(response.data.refreshToken)
+                }
+                
+                // 保存用户信息到 Zustand
+                if (response.data?.user) {
+                    setUser(response.data.user)
                 }
                 
                 toast.success("登录成功")
