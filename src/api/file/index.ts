@@ -4,9 +4,6 @@ import { request } from '@/config/axios'
 
 export interface UploadResponse {
     url: string
-    filename: string
-    size: number
-    mimeType: string
 }
 
 export interface UploadProgress {
@@ -69,14 +66,13 @@ const FileApi = {
     },
 
     /**
-     * 上传图片（自动压缩）
+     * 上传图片
      */
-    uploadImage: async (file: File, quality = 0.8, onProgress?: (progress: UploadProgress) => void) => {
+    uploadImage: async (file: File, onProgress?: (progress: UploadProgress) => void) => {
         const formData = new FormData()
         formData.append('file', file)
-        formData.append('quality', quality.toString())
 
-        return request.post<{ data: UploadResponse }>('/file/api/upload/image', formData, {
+        return request.post<{ data: string }>('/file/trip-api/upload-img', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },

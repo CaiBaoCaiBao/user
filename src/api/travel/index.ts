@@ -37,12 +37,11 @@ export interface TravelDetailParams {
 }
 
 export interface CreateTravelDTO {
-    userId: string
     destinationId: string
     attractionIds?: string[]
     title: string
     coverImg?: string
-    images?: string
+    images?: string[]
     content: string
     travelDays?: number
     budget?: number

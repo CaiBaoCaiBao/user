@@ -12,6 +12,7 @@ export interface UserInfo {
     role?: string
     status?: string
     bio?: string
+    phone?: string
     birthday?: string
     createdAt?: string
     updatedAt?: string

@@ -126,7 +126,7 @@ const refreshToken = async (): Promise<string | null> => {
 request.interceptors.request.use(
     async (config: InternalAxiosRequestConfig) => {
         // 登录/注册接口不需要 token
-        const noAuthUrls = ['/auth/api/login', '/auth/api/register', '/auth/api/refresh'];
+        const noAuthUrls = ['/auth/api/login', '/auth/api/register', '/auth/api/refresh', '/file/trip-api/upload-img'];
         const url = config.url || '';
         
         if (noAuthUrls.some(u => url.includes(u))) {

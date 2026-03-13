@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Search, MapPin, Star, DollarSign } from 'lucide-react'
+import { Search, MapPin } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 export default function Spots() {
@@ -28,10 +28,12 @@ export default function Spots() {
                 pageSize,
                 keyword: keyword || undefined,
             })
-            setSpots(response.data.data || [])
-            setTotal(response.data.total || 0)
+            const pageData = response.data.data
+            setSpots(Array.isArray(pageData?.records) ? pageData.records : [])
+            setTotal(pageData?.total || 0)
         } catch (error) {
             console.error('获取景点失败:', error)
+            setSpots([])
         } finally {
             setLoading(false)
         }
@@ -92,10 +94,10 @@ export default function Spots() {
                                 onClick={() => goToDetail(spot.id)}
                             >
                                 {/* 封面图 */}
-                                {spot.coverImage && (
+                                {spot.images && (
                                     <div className="h-48 bg-muted overflow-hidden">
                                         <img
-                                            src={spot.coverImage}
+                                            src={Array.isArray(spot.images) ? spot.images[0] : spot.images}
                                             alt={spot.name}
                                             className="w-full h-full object-cover"
                                         />
@@ -111,24 +113,10 @@ export default function Spots() {
                                             {spot.description}
                                         </p>
                                     )}
-                                    <div className="flex items-center gap-4 text-sm">
-                                        {spot.rating && (
-                                            <div className="flex items-center gap-1 text-yellow-500">
-                                                <Star className="w-4 h-4 fill-current" />
-                                                <span>{spot.rating}</span>
-                                            </div>
-                                        )}
-                                        {spot.price !== undefined && (
-                                            <div className="flex items-center gap-1 text-green-600">
-                                                <DollarSign className="w-4 h-4" />
-                                                <span>¥{spot.price}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                    {spot.destinationName && (
+                                    {spot.address && (
                                         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
                                             <MapPin className="w-4 h-4" />
-                                            <span>{spot.destinationName}</span>
+                                            <span>{spot.address}</span>
                                         </div>
                                     )}
                                 </CardContent>

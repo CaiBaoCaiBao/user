@@ -7,7 +7,7 @@ export interface Spot {
     aid: string
     destinationId: string
     name: string
-    images?: string
+    images?: string | string[]
     address?: string
     phone?: string
     longitude?: number
@@ -27,6 +27,7 @@ export interface SpotListParams {
     aid?: string
     destinationId?: string
     name?: string
+    keyword?: string
     status?: number
 }
 
@@ -41,7 +42,7 @@ const SpotApi = {
      * 获取景点列表
      */
     getSpots: async (params?: SpotListParams) => {
-        return request.get<{ data: Spot[]; total: number }>('/attraction/api/list', { params })
+        return request.get<{ data: { records: Spot[]; total: number } }>('/attraction/api/list', { params })
     },
 
     /**
@@ -57,7 +58,7 @@ const SpotApi = {
      * 根据目的地获取景点
      */
     getSpotsByDestination: async (destinationId: string, page = 1, pageSize = 20) => {
-        return request.get<{ data: Spot[]; total: number }>('/attraction/api/list', {
+        return request.get<{ data: { records: Spot[]; total: number } }>('/attraction/api/list', {
             params: { destinationId, page, pageSize }
         })
     },

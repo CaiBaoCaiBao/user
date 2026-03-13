@@ -3,19 +3,24 @@ import { request } from '@/config/axios'
 // ==================== 类型定义 ====================
 
 export interface UserInfo {
-    id: number
+    id?: number
     uUid: string
     userName: string
-    email: string
+    email?: string
     role: string
     status: string
+    nickName?: string
+    avatar?: string
+    bio?: string
+    phone?: string
+    birthday?: string
     createdAt?: string
     updatedAt?: string
 }
 
 export interface UserProfile {
-    id: number
-    uUid: string
+    id?: number
+    uUid?: string
     nickName?: string
     idCard?: string
     phone?: string
@@ -34,7 +39,7 @@ export interface UpdateUserDTO {
 }
 
 export interface UpdateUserProfileDTO {
-    uUid: string
+    uUid?: string
     nickName?: string
     idCard?: string
     phone?: string
@@ -77,10 +82,9 @@ const UserApi = {
 
     /**
      * 更新用户资料
-     * 注意：此接口需要后端实现
      */
     updateUserProfile: async (data: UpdateUserProfileDTO) => {
-        return request.post('/user/api/profile/update', data)
+        return request.post('/user/api/update', data)
     },
 
     /**

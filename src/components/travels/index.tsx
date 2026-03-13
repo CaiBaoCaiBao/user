@@ -33,22 +33,25 @@ export default function Travels() {
                 response = await TravelApi.getMyTravels(page, pageSize)
             } else if (activeTab === 'hot') {
                 response = await TravelApi.getHotTravels(pageSize)
-                setTravels(response.data.data || [])
-                setTotal(response.data.data?.length || 0)
+                const travelData = response.data.data
+                setTravels(Array.isArray(travelData) ? travelData : [])
+                setTotal(Array.isArray(travelData) ? travelData.length : 0)
                 setLoading(false)
                 return
             } else {
                 response = await TravelApi.getTravels({
                     page,
                     pageSize,
-                    keyword: keyword || undefined,
+                    title: keyword || undefined,
                 })
             }
 
-            setTravels(response.data.data || [])
+            const travelData = response.data.data
+            setTravels(Array.isArray(travelData) ? travelData : [])
             setTotal(response.data.total || 0)
         } catch (error) {
             console.error('获取旅行攻略失败:', error)
+            setTravels([])
         } finally {
             setLoading(false)
         }
@@ -65,8 +68,8 @@ export default function Travels() {
     }
 
     // 跳转详情
-    const goToDetail = (id: number) => {
-        router.push(`/travels/${id}`)
+    const goToDetail = (noteId: string) => {
+        router.push(`/travels/${noteId}`)
     }
 
     // 跳转创建
@@ -127,15 +130,15 @@ export default function Travels() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {travels.map((travel) => (
                             <Card
-                                key={travel.id}
+                                key={travel.noteId}
                                 className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                                onClick={() => goToDetail(travel.id)}
+                                onClick={() => goToDetail(travel.noteId)}
                             >
                                 {/* 封面图 */}
-                                {travel.coverImage && (
+                                {travel.coverImg && (
                                     <div className="h-48 bg-muted overflow-hidden">
                                         <img
-                                            src={travel.coverImage}
+                                            src={travel.coverImg}
                                             alt={travel.title}
                                             className="w-full h-full object-cover"
                                         />
@@ -146,19 +149,19 @@ export default function Travels() {
                                     <h3 className="text-lg font-semibold mb-2">
                                         {travel.title}
                                     </h3>
-                                    {travel.description && (
+                                    {travel.content && (
                                         <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                                            {travel.description}
+                                            {travel.content}
                                         </p>
                                     )}
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                                         <User className="w-4 h-4" />
-                                        <span>{travel.userName}</span>
+                                        <span>{travel.userId}</span>
                                     </div>
-                                    {travel.days && (
+                                    {travel.travelDays && (
                                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                             <Calendar className="w-4 h-4" />
-                                            <span>{travel.days} 天行程</span>
+                                            <span>{travel.travelDays} 天行程</span>
                                         </div>
                                     )}
                                 </CardContent>
@@ -175,7 +178,7 @@ export default function Travels() {
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <Bookmark className="w-4 h-4" />
-                                            <span>{travel.collectCount || 0}</span>
+                                            <span>{travel.commentCount || 0}</span>
                                         </div>
                                     </div>
                                 </CardFooter>
