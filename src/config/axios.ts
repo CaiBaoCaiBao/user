@@ -150,6 +150,16 @@ request.interceptors.request.use(
 
 request.interceptors.response.use(
     (response: AxiosResponse) => {
+        // 检查后端返回的业务状态码
+        const data = response.data as any;
+
+        // 如果后端返回 success: false，视为业务错误
+        if (data && data.success === false) {
+            const message = data.message || '请求失败';
+            toast.error(message);
+            return Promise.reject(new Error(message));
+        }
+
         return response;
     },
     async (error: AxiosError) => {
@@ -215,7 +225,8 @@ request.interceptors.response.use(
         }
 
         // 其他错误统一处理
-        const message = (error.response.data as any)?.message || '请求失败';
+        const responseData = error.response.data as any;
+        const message = responseData?.message || '请求失败';
         toast.error(message);
 
         return Promise.reject(error);

@@ -4,20 +4,19 @@ import { request } from '@/config/axios'
 
 export interface Spot {
     id: number
+    aid: string
+    destinationId: string
     name: string
-    description?: string
-    coverImage?: string
-    images?: string[]
-    destinationId?: number
-    destinationName?: string
+    images?: string
     address?: string
-    latitude?: number
+    phone?: string
     longitude?: number
-    rating?: number
-    reviewCount?: number
-    price?: number
-    openingHours?: string
-    tags?: string[]
+    latitude?: number
+    description?: string
+    viewCount?: number
+    status?: number
+    sortOrder?: number
+    realTimeSyncFlag?: boolean
     createdAt?: string
     updatedAt?: string
 }
@@ -25,12 +24,14 @@ export interface Spot {
 export interface SpotListParams {
     page?: number
     pageSize?: number
-    destinationId?: number
-    keyword?: string
-    minPrice?: number
-    maxPrice?: number
-    minRating?: number
-    tags?: string[]
+    aid?: string
+    destinationId?: string
+    name?: string
+    status?: number
+}
+
+export interface SpotDetailParams {
+    aid: string
 }
 
 // ==================== 景点 API ====================
@@ -40,50 +41,46 @@ const SpotApi = {
      * 获取景点列表
      */
     getSpots: async (params?: SpotListParams) => {
-        return request.get<{ data: Spot[]; total: number }>('/spot/api/list', { params })
+        return request.get<{ data: Spot[]; total: number }>('/attraction/api/list', { params })
     },
 
     /**
      * 获取景点详情
      */
-    getSpotById: async (id: number) => {
-        return request.get<{ data: Spot }>(`/spot/api/${id}`)
+    getSpotById: async (aid: string) => {
+        return request.get<{ data: Spot }>('/attraction/api/detail', {
+            params: { aid }
+        })
     },
 
     /**
      * 根据目的地获取景点
      */
-    getSpotsByDestination: async (destinationId: number, page = 1, pageSize = 20) => {
-        return request.get<{ data: Spot[]; total: number }>('/spot/api/by-destination', {
+    getSpotsByDestination: async (destinationId: string, page = 1, pageSize = 20) => {
+        return request.get<{ data: Spot[]; total: number }>('/attraction/api/list', {
             params: { destinationId, page, pageSize }
         })
     },
 
     /**
-     * 搜索景点
+     * 创建景点（管理员功能）
      */
-    searchSpots: async (keyword: string, page = 1, pageSize = 20) => {
-        return request.get<{ data: Spot[]; total: number }>('/spot/api/search', {
-            params: { keyword, page, pageSize }
-        })
+    createSpot: async (data: any) => {
+        return request.post('/attraction/api/create', data)
     },
 
     /**
-     * 获取热门景点
+     * 更新景点（管理员功能）
      */
-    getHotSpots: async (limit = 10) => {
-        return request.get<{ data: Spot[] }>('/spot/api/hot', {
-            params: { limit }
-        })
+    updateSpot: async (data: any) => {
+        return request.post('/attraction/api/update', data)
     },
 
     /**
-     * 获取推荐景点
+     * 删除景点（管理员功能）
      */
-    getRecommendedSpots: async (limit = 10) => {
-        return request.get<{ data: Spot[] }>('/spot/api/recommended', {
-            params: { limit }
-        })
+    deleteSpot: async (data: any) => {
+        return request.delete('/attraction/api/delete', { data })
     },
 }
 

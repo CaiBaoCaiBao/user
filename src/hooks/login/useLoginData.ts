@@ -37,9 +37,6 @@ export const loginSchema = z.discriminatedUnion('loginMethod', [
     otpSchema,
 ])
 
-// 类型导出
-export type LoginFormData = z.infer<typeof loginSchema>
-
 export const useLoginData = () => {
     const [loginMethod, setLoginMethod] = React.useState<'password' | 'otp'>('password')
     const router = useRouter()
@@ -61,27 +58,37 @@ export const useLoginData = () => {
                     userName: values.value.email,
                     key: values.value.key,
                     rememberMe: values.value.rememberMe,
-                    loginMethod:loginMethod
+                    loginMethod: loginMethod
                 }
                 const response = await AuthApi.login(data)
-                
-                // 保存 Token
-                if (response.data?.accessToken) {
-                    tokenService.setAccessToken(response.data.accessToken)
+
+                console.log('登录响应:', response.data)
+
+                // 保存 Token - 后端返回结构是 { code, success, message, data, timestamp }
+                if (response.data?.data?.accessToken) {
+                    tokenService.setAccessToken(response.data.data.accessToken)
                 }
-                if (response.data?.refreshToken) {
-                    tokenService.setRefreshToken(response.data.refreshToken)
+                if (response.data?.data?.refreshToken) {
+                    tokenService.setRefreshToken(response.data.data.refreshToken)
                 }
-                
-                // 保存用户信息到 Zustand
-                if (response.data?.user) {
-                    setUser(response.data.user)
+
+                // 登录成功后获取用户信息
+                try {
+                    const userResponse = await AuthApi.getMyProfile()
+                    console.log('用户信息响应:', userResponse.data)
+                    if (userResponse.data?.data) {
+                        setUser(userResponse.data.data)
+                    }
+                } catch (userError) {
+                    console.error('获取用户信息失败:', userError)
                 }
-                
+
                 toast.success("登录成功")
                 router.push('/')
-            } catch (error) {
-                toast.error("登录失败")
+            } catch (error: any) {
+                console.error('登录错误:', error)
+                const message = error?.response?.data?.message || "登录失败"
+                toast.error(message)
             }
         }
     })

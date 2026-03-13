@@ -9,49 +9,42 @@ export interface SearchResult<T> {
 
 export interface SearchParams {
     keyword: string
-    type?: 'all' | 'destination' | 'spot' | 'travel'
-    page?: number
+    type?: 'all' | 'destination' | 'travel_note'
+    pageNum?: number
     pageSize?: number
 }
 
 export interface Destination {
-    id: number
+    destinationId: string
     name: string
     description?: string
-    coverImage?: string
-    country?: string
+    coverImg?: string
     province?: string
     city?: string
+    attractionCount?: number
+    travelNoteCount?: number
+    createdAt?: string
 }
 
-export interface Spot {
-    id: number
-    name: string
-    description?: string
-    coverImage?: string
-    destinationId?: number
-    destinationName?: string
-    rating?: number
-    price?: number
-}
-
-export interface Travel {
-    id: number
+export interface TravelNote {
+    noteId: string
     title: string
-    description?: string
-    coverImage?: string
-    userId?: number
+    coverImg?: string
+    summary?: string
+    userId?: string
     userName?: string
-    destinationId?: number
-    destinationName?: string
+    userAvatar?: string
+    viewCount?: number
     likeCount?: number
-    collectCount?: number
+    commentCount?: number
+    createdAt?: string
 }
 
 export interface AllSearchResult {
     destinations: Destination[]
-    spots: Spot[]
-    travels: Travel[]
+    travelNotes: TravelNote[]
+    travelNoteTotal?: number
+    destinationTotal?: number
 }
 
 // ==================== 搜索 API ====================
@@ -60,41 +53,33 @@ const SearchApi = {
     /**
      * 综合搜索
      */
-    searchAll: async (keyword: string, page = 1, pageSize = 10) => {
-        return request.get<{ data: AllSearchResult }>('/search/api/all', {
-            params: { keyword, page, pageSize }
+    searchAll: async (keyword: string, pageNum = 1, pageSize = 10) => {
+        return request.get<{ data: AllSearchResult }>('/search/api/search', {
+            params: { keyword, type: 'all', pageNum, pageSize }
         })
     },
 
     /**
      * 搜索目的地
      */
-    searchDestinations: async (keyword: string, page = 1, pageSize = 20) => {
-        return request.get<{ data: SearchResult<Destination> }>('/search/api/destinations', {
-            params: { keyword, page, pageSize }
-        })
-    },
-
-    /**
-     * 搜索景点
-     */
-    searchSpots: async (keyword: string, page = 1, pageSize = 20) => {
-        return request.get<{ data: SearchResult<Spot> }>('/search/api/spots', {
-            params: { keyword, page, pageSize }
+    searchDestinations: async (keyword: string, pageNum = 1, pageSize = 20) => {
+        return request.get<{ data: SearchResult<Destination> }>('/search/api/search', {
+            params: { keyword, type: 'destination', pageNum, pageSize }
         })
     },
 
     /**
      * 搜索旅行攻略
      */
-    searchTravels: async (keyword: string, page = 1, pageSize = 20) => {
-        return request.get<{ data: SearchResult<Travel> }>('/search/api/travels', {
-            params: { keyword, page, pageSize }
+    searchTravelNotes: async (keyword: string, pageNum = 1, pageSize = 20) => {
+        return request.get<{ data: SearchResult<TravelNote> }>('/search/api/search', {
+            params: { keyword, type: 'travel_note', pageNum, pageSize }
         })
     },
 
     /**
      * 获取搜索建议
+     * 注意：此接口需要后端实现
      */
     getSuggestions: async (keyword: string, limit = 10) => {
         return request.get<{ data: string[] }>('/search/api/suggestions', {
@@ -104,6 +89,7 @@ const SearchApi = {
 
     /**
      * 获取热门搜索词
+     * 注意：此接口需要后端实现
      */
     getHotKeywords: async (limit = 10) => {
         return request.get<{ data: string[] }>('/search/api/hot-keywords', {

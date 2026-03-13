@@ -4,155 +4,195 @@ import { request } from '@/config/axios'
 
 export interface Comment {
     id: number
+    commentId: string
+    userId: string
+    targetType: string
+    targetId: string
+    parentCommentId?: string
     content: string
-    userId: number
-    userName: string
-    userAvatar?: string
-    targetType: 'spot' | 'travel'
-    targetId: number
-    parentId?: number
-    replyToUserId?: number
-    replyToUserName?: string
     likeCount?: number
-    isLiked?: boolean
     createdAt?: string
     updatedAt?: string
-    children?: Comment[]
 }
 
 export interface CreateCommentDTO {
+    userId: string
+    targetType: string
+    targetId: string
+    parentCommentId?: string
     content: string
-    targetType: 'spot' | 'travel'
-    targetId: number
-    parentId?: number
-    replyToUserId?: number
 }
 
-export interface Like {
-    id: number
-    userId: number
-    targetType: 'spot' | 'travel' | 'comment'
-    targetId: number
-    createdAt?: string
+export interface CommentListParams {
+    page?: number
+    pageSize?: number
+    commentId?: string
+    userId?: string
+    targetType?: string
+    targetId?: string
+    parentCommentId?: string
 }
 
-export interface Collect {
-    id: number
-    userId: number
-    targetType: 'spot' | 'travel'
-    targetId: number
-    createdAt?: string
-}
+// ==================== 评论 API ====================
 
-// ==================== 社交 API ====================
-
-const SocialApi = {
-    // ==================== 评论相关 ====================
-
+const CommentApi = {
     /**
      * 获取评论列表
      */
-    getComments: async (targetType: 'spot' | 'travel', targetId: number, page = 1, pageSize = 20) => {
-        return request.get<{ data: Comment[]; total: number }>('/social/api/comments', {
-            params: { targetType, targetId, page, pageSize }
-        })
+    getComments: async (params?: CommentListParams) => {
+        return request.get<{ data: Comment[]; total: number }>('/comment/api/list', { params })
     },
 
     /**
      * 创建评论
      */
     createComment: async (data: CreateCommentDTO) => {
-        return request.post<{ data: Comment }>('/social/api/comment', data)
+        return request.post('/comment/api/create', data)
     },
 
     /**
      * 删除评论
      */
-    deleteComment: async (id: number) => {
-        return request.delete(`/social/api/comment/${id}`)
+    deleteComment: async (data: any) => {
+        return request.delete('/comment/api/delete', { data })
     },
 
     /**
-     * 点赞评论
+     * 获取评论总数
      */
-    likeComment: async (commentId: number) => {
-        return request.post(`/social/api/comment/${commentId}/like`)
-    },
-
-    /**
-     * 取消点赞评论
-     */
-    unlikeComment: async (commentId: number) => {
-        return request.delete(`/social/api/comment/${commentId}/like`)
-    },
-
-    // ==================== 点赞相关 ====================
-
-    /**
-     * 点赞
-     */
-    like: async (targetType: 'spot' | 'travel', targetId: number) => {
-        return request.post('/social/api/like', { targetType, targetId })
-    },
-
-    /**
-     * 取消点赞
-     */
-    unlike: async (targetType: 'spot' | 'travel', targetId: number) => {
-        return request.delete('/social/api/like', { data: { targetType, targetId } })
-    },
-
-    /**
-     * 检查是否已点赞
-     */
-    checkLike: async (targetType: 'spot' | 'travel', targetId: number) => {
-        return request.get<{ data: { isLiked: boolean } }>('/social/api/like/check', {
-            params: { targetType, targetId }
-        })
-    },
-
-    /**
-     * 获取我的点赞列表
-     */
-    getMyLikes: async (page = 1, pageSize = 20) => {
-        return request.get<{ data: Like[]; total: number }>('/social/api/likes/my', {
-            params: { page, pageSize }
-        })
-    },
-
-    // ==================== 收藏相关 ====================
-
-    /**
-     * 收藏
-     */
-    collect: async (targetType: 'spot' | 'travel', targetId: number) => {
-        return request.post('/social/api/collect', { targetType, targetId })
-    },
-
-    /**
-     * 取消收藏
-     */
-    uncollect: async (targetType: 'spot' | 'travel', targetId: number) => {
-        return request.delete('/social/api/collect', { data: { targetType, targetId } })
-    },
-
-    /**
-     * 检查是否已收藏
-     */
-    checkCollect: async (targetType: 'spot' | 'travel', targetId: number) => {
-        return request.get<{ data: { isCollected: boolean } }>('/social/api/collect/check', {
-            params: { targetType, targetId }
-        })
-    },
-
-    /**
-     * 获取我的收藏列表
-     */
-    getMyCollects: async (page = 1, pageSize = 20) => {
-        return request.get<{ data: Collect[]; total: number }>('/social/api/collects/my', {
-            params: { page, pageSize }
-        })
+    getCommentCount: async () => {
+        return request.get('/comment/api/count')
     },
 }
 
+export interface Like {
+    id: number
+    likeId: string
+    userId: string
+    targetType: string
+    targetId: string
+    createdAt?: string
+    updatedAt?: string
+}
+
+export interface LikeStatusVO {
+    isLiked: boolean
+}
+
+export interface LikeListParams {
+    page?: number
+    pageSize?: number
+    likeId?: string
+    userId?: string
+    targetType?: string
+    targetId?: string
+}
+
+export interface ToggleLikeDTO {
+    targetType: string
+    targetId: string
+}
+
+export interface CheckLikeStatusDTO {
+    targetType: string
+    targetId: string
+}
+
+export interface GetLikeCountDTO {
+    targetType: string
+    targetId: string
+}
+
+// ==================== 点赞 API ====================
+
+const LikeApi = {
+    /**
+     * 点赞/取消点赞
+     */
+    toggleLike: async (data: ToggleLikeDTO) => {
+        return request.post('/like/api/toggle', data)
+    },
+
+    /**
+     * 检查点赞状态
+     */
+    checkLikeStatus: async (params: CheckLikeStatusDTO) => {
+        return request.get<{ data: LikeStatusVO }>('/like/api/status', { params })
+    },
+
+    /**
+     * 获取点赞数
+     */
+    getLikeCount: async (params: GetLikeCountDTO) => {
+        return request.get<{ data: number }>('/like/api/count', { params })
+    },
+}
+
+export interface Collect {
+    id: number
+    collectionId: string
+    userId: string
+    targetType: string
+    targetId: string
+    createdAt?: string
+    updatedAt?: string
+}
+
+export interface CollectionStatusVO {
+    isCollected: boolean
+}
+
+export interface CollectionListParams {
+    page?: number
+    pageSize?: number
+    collectionId?: string
+    userId?: string
+    targetType?: string
+    targetId?: string
+}
+
+export interface ToggleCollectionDTO {
+    targetType: string
+    targetId: string
+}
+
+export interface CheckCollectionStatusDTO {
+    targetType: string
+    targetId: string
+}
+
+// ==================== 收藏 API ====================
+
+const CollectionApi = {
+    /**
+     * 收藏/取消收藏
+     */
+    toggleCollection: async (data: ToggleCollectionDTO) => {
+        return request.post('/collection/api/toggle', data)
+    },
+
+    /**
+     * 检查收藏状态
+     */
+    checkCollectionStatus: async (params: CheckCollectionStatusDTO) => {
+        return request.get<{ data: CollectionStatusVO }>('/collection/api/status', { params })
+    },
+
+    /**
+     * 查询收藏列表
+     */
+    getCollectionList: async (params?: CollectionListParams) => {
+        return request.get<{ data: Collect[]; total: number }>('/collection/api/list', { params })
+    },
+}
+
+// ==================== 社交 API 统一导出 ====================
+
+const SocialApi = {
+    ...CommentApi,
+    ...LikeApi,
+    ...CollectionApi,
+}
+
+export { CommentApi, LikeApi, CollectionApi }
 export default SocialApi

@@ -1,5 +1,5 @@
 import * as z from "zod"
-import { request } from '@/config/axios'
+import AuthApi from '@/api/auth'
 import { toast } from "sonner"
 
 const otpEmailSchema = z.object({
@@ -24,15 +24,13 @@ export function useSendOTP() {
         // 2. 调用后端API发送OTP
         try {
             const { template = 'register' } = options
-            const res = await request.post('/users/mail/api/sendOtp', {
-                email,
-                template
-            })
-            console.log(res)
-            if (!res.data.success) {
-                toast.error(res.data.message || "验证码获取失败")
+            const res = await AuthApi.sendOTP({ email, template })
+
+            if (!res.data?.success) {
+                toast.error(res.data?.message || "验证码获取失败")
                 return false
             }
+
             toast.success("验证码已发送到您的邮箱")
             return true
         } catch (error: any) {

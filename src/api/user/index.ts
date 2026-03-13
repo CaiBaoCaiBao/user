@@ -4,20 +4,43 @@ import { request } from '@/config/axios'
 
 export interface UserInfo {
     id: number
+    uUid: string
     userName: string
     email: string
-    avatar?: string
+    role: string
+    status: string
+    createdAt?: string
+    updatedAt?: string
+}
+
+export interface UserProfile {
+    id: number
+    uUid: string
+    nickName?: string
+    idCard?: string
     phone?: string
+    avatar?: string
     bio?: string
+    birthday?: string
     createdAt?: string
     updatedAt?: string
 }
 
 export interface UpdateUserDTO {
     userName?: string
-    avatar?: string
+    email?: string
+    role?: string
+    status?: string
+}
+
+export interface UpdateUserProfileDTO {
+    uUid: string
+    nickName?: string
+    idCard?: string
     phone?: string
+    avatar?: string
     bio?: string
+    birthday?: string
 }
 
 // ==================== 用户 API ====================
@@ -27,21 +50,37 @@ const UserApi = {
      * 获取当前用户信息
      */
     getCurrentUser: async () => {
-        return request.get<{ data: UserInfo }>('/user/api/current')
+        return request.get<{ data: UserInfo }>('/user/api/my-profile')
     },
 
     /**
      * 根据ID获取用户信息
      */
-    getUserById: async (id: number) => {
-        return request.get<{ data: UserInfo }>(`/user/api/${id}`)
+    getUserById: async (uUid: string) => {
+        return request.get<{ data: UserInfo }>('/user/api/info', { params: { uid: uUid } })
+    },
+
+    /**
+     * 获取用户资料
+     */
+    getUserProfile: async (uUid: string) => {
+        return request.get<{ data: UserProfile }>('/user/api/info', { params: { uid: uUid } })
     },
 
     /**
      * 更新用户信息
+     * 注意：此接口需要后端实现
      */
     updateUser: async (data: UpdateUserDTO) => {
-        return request.put<{ data: UserInfo }>('/user/api/update', data)
+        return request.post('/user/api/update', data)
+    },
+
+    /**
+     * 更新用户资料
+     * 注意：此接口需要后端实现
+     */
+    updateUserProfile: async (data: UpdateUserProfileDTO) => {
+        return request.post('/user/api/profile/update', data)
     },
 
     /**

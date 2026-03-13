@@ -4,13 +4,22 @@ import { request } from '@/config/axios'
 
 export interface Destination {
     id: number
+    destinationId: string
     name: string
+    aliasesName?: string
+    destCode?: string
+    longitude?: number
+    latitude?: number
+    coverImg?: string
     description?: string
-    coverImage?: string
-    country?: string
-    province?: string
-    city?: string
-    spotCount?: number
+    parentId?: string
+    level?: number
+    countryCode?: string
+    bestSeason?: string
+    travelDays?: number
+    viewCount?: number
+    status?: string
+    sortOrder?: string
     createdAt?: string
     updatedAt?: string
 }
@@ -18,10 +27,16 @@ export interface Destination {
 export interface DestinationListParams {
     page?: number
     pageSize?: number
-    country?: string
+    destinationId?: string
+    name?: string
     province?: string
     city?: string
-    keyword?: string
+    level?: number
+    status?: string
+}
+
+export interface DestinationDetailParams {
+    destinationId: string
 }
 
 // ==================== 目的地 API ====================
@@ -37,26 +52,31 @@ const DestinationApi = {
     /**
      * 获取目的地详情
      */
-    getDestinationById: async (id: number) => {
-        return request.get<{ data: Destination }>(`/destination/api/${id}`)
-    },
-
-    /**
-     * 搜索目的地
-     */
-    searchDestinations: async (keyword: string, page = 1, pageSize = 20) => {
-        return request.get<{ data: Destination[]; total: number }>('/destination/api/search', {
-            params: { keyword, page, pageSize }
+    getDestinationById: async (destinationId: string) => {
+        return request.get<{ data: Destination }>('/destination/api/detail', {
+            params: { destinationId }
         })
     },
 
     /**
-     * 获取热门目的地
+     * 创建目的地（管理员功能）
      */
-    getHotDestinations: async (limit = 10) => {
-        return request.get<{ data: Destination[] }>('/destination/api/hot', {
-            params: { limit }
-        })
+    createDestination: async (data: any) => {
+        return request.post('/destination/api/create', data)
+    },
+
+    /**
+     * 更新目的地（管理员功能）
+     */
+    updateDestination: async (data: any) => {
+        return request.post('/destination/api/update', data)
+    },
+
+    /**
+     * 删除目的地（管理员功能）
+     */
+    deleteDestination: async (data: any) => {
+        return request.delete('/destination/api/delete', { data })
     },
 }
 

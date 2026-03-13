@@ -116,9 +116,13 @@ export default function PasswordLogin({
                             field.state.meta.isTouched && !field.state.meta.isValid
                         return (<>
                             <Field orientation="horizontal">
-                                <Checkbox id="toggle-checkbox-2" name="toggle-checkbox-2" />
+                                <Checkbox
+                                    id="remember-me"
+                                    checked={field.state.value}
+                                    onCheckedChange={(checked) => field.handleChange(checked)}
+                                />
                                 <FieldContent>
-                                    <FieldLabel>七天内免登录</FieldLabel>
+                                    <FieldLabel htmlFor="remember-me">七天内免登录</FieldLabel>
                                 </FieldContent>
                             </Field>
                         </>)

@@ -5,12 +5,14 @@ import { tokenService } from '@/config/axios'
 // ==================== 类型定义 ====================
 
 export interface UserInfo {
-    id: number
+    uUid: string
     userName: string
-    email: string
+    nickName?: string
     avatar?: string
-    phone?: string
+    role?: string
+    status?: string
     bio?: string
+    birthday?: string
     createdAt?: string
     updatedAt?: string
 }
@@ -85,20 +87,8 @@ export const useCurrentUser = () => {
 }
 
 /**
- * 获取登录状态
- */
-export const useIsLoggedIn = () => {
-    return useUserStore((state) => state.isLoggedIn)
-}
-
-/**
  * 获取用户操作方法
  */
 export const useUserActions = () => {
-    return useUserStore((state) => ({
-        setUser: state.setUser,
-        clearUser: state.clearUser,
-        logout: state.logout,
-        updateUser: state.updateUser,
-    }))
+    return useUserStore((state) => state)
 }
