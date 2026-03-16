@@ -6,6 +6,8 @@ export interface Travel {
     id: number
     noteId: string
     userId: string
+    userName?: string
+    nickName?: string
     destinationId: string
     title: string
     coverImg?: string
@@ -16,14 +18,49 @@ export interface Travel {
     viewCount?: number
     likeCount?: number
     commentCount?: number
+    collectionCount?: number
     status?: number
     sortOrder?: number
     createdAt?: string
     updatedAt?: string
 }
 
+export interface TravelDetail {
+    id: number
+    noteId: string
+    userId: string
+    userName?: string
+    nickName?: string
+    userAvatar?: string
+    destinationId: string
+    destinationName?: string
+    title: string
+    coverImg?: string
+    images?: string[]
+    content: string
+    travelDays?: number
+    budget?: number
+    viewCount?: number
+    likeCount?: number
+    commentCount?: number
+    collectionCount?: number
+    status?: number
+    sortOrder?: number
+    createdAt?: string
+    updatedAt?: string
+    attractions?: AttractionSimple[]
+}
+
+export interface AttractionSimple {
+    id: number
+    aid: string
+    name: string
+    coverImg?: string
+    description?: string
+}
+
 export interface TravelListParams {
-    page?: number
+    pageNum?: number
     pageSize?: number
     noteId?: string
     userId?: string
@@ -37,6 +74,7 @@ export interface TravelDetailParams {
 }
 
 export interface CreateTravelDTO {
+    userId: string
     destinationId: string
     attractionIds?: string[]
     title: string
@@ -56,14 +94,14 @@ const TravelApi = {
      * 获取旅行攻略列表
      */
     getTravels: async (params?: TravelListParams) => {
-        return request.get<{ data: Travel[]; total: number }>('/travel-note/api/list', { params })
+        return request.get<{ data: { records: Travel[]; total: number; size: number; current: number } }>('/travel-note/api/list', { params })
     },
 
     /**
      * 获取旅行攻略详情
      */
     getTravelById: async (noteId: string) => {
-        return request.get<{ data: Travel }>('/travel-note/api/detail', {
+        return request.get<{ data: TravelDetail }>('/travel-note/api/detail', {
             params: { noteId }
         })
     },
@@ -93,7 +131,7 @@ const TravelApi = {
      * 批量获取游记详情
      */
     getBatchTravelDetail: async (noteIds: string[]) => {
-        return request.get('/travel-note/api/batch-detail', {
+        return request.get<{ data: Travel[] }>('/travel-note/api/batch-detail', {
             params: { noteIds }
         })
     },
@@ -101,9 +139,9 @@ const TravelApi = {
     /**
      * 获取我的游记列表
      */
-    getMyTravels: async (page: number = 1, pageSize: number = 10) => {
-        return request.get('/user/api/my-travel-notes', {
-            params: { pageNum: page, pageSize }
+    getMyTravels: async (page: number = 1, pageSize: number = 10, userId?: string) => {
+        return request.get<{ data: { records: Travel[]; total: number; size: number; current: number } }>('/travel-note/api/list', {
+            params: { pageNum: page, pageSize, userId }
         })
     },
 
@@ -111,7 +149,7 @@ const TravelApi = {
      * 获取热门游记
      */
     getHotTravels: async (pageSize: number = 10) => {
-        return request.get('/travel-note/api/list', {
+        return request.get<{ data: { records: Travel[]; total: number; size: number; current: number } }>('/travel-note/api/list', {
             params: { pageNum: 1, pageSize, status: 1 }
         })
     },

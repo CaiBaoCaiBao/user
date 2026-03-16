@@ -4,7 +4,7 @@ import { request } from '@/config/axios'
 
 export interface UserInfo {
     id?: number
-    uUid: string
+    uuid: string
     userName: string
     email?: string
     role: string
@@ -20,7 +20,7 @@ export interface UserInfo {
 
 export interface UserProfile {
     id?: number
-    uUid?: string
+    uuid?: string
     nickName?: string
     idCard?: string
     phone?: string
@@ -39,7 +39,7 @@ export interface UpdateUserDTO {
 }
 
 export interface UpdateUserProfileDTO {
-    uUid?: string
+    uuid?: string
     nickName?: string
     idCard?: string
     phone?: string
@@ -59,17 +59,27 @@ const UserApi = {
     },
 
     /**
-     * 根据ID获取用户信息
+     * 根据用户ID获取用户信息
      */
-    getUserById: async (uUid: string) => {
-        return request.get<{ data: UserInfo }>('/user/api/info', { params: { uid: uUid } })
+    getUserById: async (uid: string) => {
+        return request.get<{ data: UserInfo }>('/user/api/info', { params: { uid } })
     },
 
     /**
-     * 获取用户资料
+     * 根据用户名获取用户信息
      */
-    getUserProfile: async (uUid: string) => {
-        return request.get<{ data: UserProfile }>('/user/api/info', { params: { uid: uUid } })
+    getUserByUserName: async (userName: string) => {
+        return request.get<{ data: UserInfo }>('/user/api/info', { params: { userName } })
+    },
+
+    /**
+     * 获取用户资料（支持 uid 或 userName）
+     */
+    getUserProfile: async (uid?: string, userName?: string) => {
+        const params: any = {}
+        if (uid) params.uid = uid
+        if (userName) params.userName = userName
+        return request.get<{ data: UserProfile }>('/user/api/info', { params })
     },
 
     /**

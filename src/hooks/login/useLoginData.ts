@@ -42,6 +42,7 @@ export const useLoginData = () => {
     const router = useRouter()
     const { setUser } = useUserActions()
     const REGEXP_NUMERIC = "^[a-zA-Z0-9]+$";
+
     const loginForm = useForm({
         defaultValues: {
             email: "",
@@ -50,16 +51,30 @@ export const useLoginData = () => {
             loginMethod: loginMethod
         },
         validators: {
-            onSubmit: loginSchema,
+            onSubmit: async ({ value }) => {
+                console.log('========== 开始验证表单数据 ==========')
+                console.log('表单值:', value)
+                console.log('当前 loginMethod 状态:', loginMethod)
+                console.log('表单中的 loginMethod 字段:', value.loginMethod)
+                // 根据当前 loginMethod 动态选择验证 schema
+                const schema = loginMethod === 'password' ? passwordSchema : otpSchema
+                console.log('使用的 schema:', loginMethod === 'password' ? 'passwordSchema' : 'otpSchema')
+                const result = await schema.parseAsync(value)
+                console.log('验证通过:', result)
+                console.log('========== 验证完成 ==========')
+                return result
+            },
         },
         onSubmit: async (values) => {
+            console.log('开始提交登录请求:', values)
             try {
                 const data: LoginDTO = {
                     userName: values.value.email,
                     key: values.value.key,
                     rememberMe: values.value.rememberMe,
-                    loginMethod: loginMethod
+                    loginMethod: values.value.loginMethod
                 }
+                console.log('请求数据:', data)
                 const response = await AuthApi.login(data)
 
                 console.log('登录响应:', response.data)
@@ -92,6 +107,13 @@ export const useLoginData = () => {
             }
         }
     })
+
+    // 当 loginMethod 改变时，同步更新表单的 loginMethod 字段
+    React.useEffect(() => {
+        loginForm.setFieldValue('loginMethod', loginMethod)
+        // 清空 key 字段，避免切换登录方式时保留之前的输入
+        loginForm.setFieldValue('key', '')
+    }, [loginMethod, loginForm])
 
     return {
         loginForm,

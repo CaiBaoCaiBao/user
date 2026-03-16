@@ -22,10 +22,12 @@ export type { Spot as SpotInfo, SpotListParams, SpotDetailParams } from './spot'
 export { default as TravelApi } from './travel'
 export type {
     Travel as TravelInfo,
+    TravelDetail,
     TravelListParams,
     TravelDetailParams,
     CreateTravelDTO,
     UpdateTravelDTO,
+    AttractionSimple,
 } from './travel'
 
 // 社交相关
@@ -40,6 +42,7 @@ export type {
     ToggleLikeDTO,
     CheckLikeStatusDTO,
     GetLikeCountDTO,
+    QueryLikeListDTO,
     Collect,
     CollectionStatusVO,
     CollectionListParams,

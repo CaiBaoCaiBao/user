@@ -47,9 +47,27 @@ export default function Login() {
                 <CardFooter className="bg-transparent border-0" >
                     <Button
                         type="button"
-                        form="login-form"
                         className="w-full cursor-pointer"
-                        onClick={()=>loginForm.handleSubmit()}
+                        onClick={async () => {
+                            console.log('登录按钮被点击')
+                            console.log('当前登录方式:', loginMethod)
+                            try {
+                                const values = loginForm.state.values
+                                console.log('当前表单值:', values)
+                                
+                                // 手动调用验证和提交
+                                await loginForm.validators?.onSubmit?.({ value: values })
+                                console.log('验证完成，准备调用 onSubmit')
+                                
+                                // 手动调用 onSubmit
+                                if (loginForm.options.onSubmit) {
+                                    await loginForm.options.onSubmit({ value: values })
+                                    console.log('onSubmit 执行完成')
+                                }
+                            } catch (error) {
+                                console.error('登录提交失败:', error)
+                            }
+                        }}
                     >
                         登录账户
                     </Button>

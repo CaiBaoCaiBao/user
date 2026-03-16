@@ -5,7 +5,7 @@ import { tokenService } from '@/config/axios'
 // ==================== 类型定义 ====================
 
 export interface UserInfo {
-    uUid: string
+    uuid: string
     userName: string
     nickName?: string
     avatar?: string

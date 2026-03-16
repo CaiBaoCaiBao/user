@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { TravelApi, DestinationApi, FileApi } from '@/api'
 import { useCurrentUser } from '@/store/userStore'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,11 +12,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import { ArrowLeft, Upload, X } from 'lucide-react'
-import type { DestinationInfo } from '@/api'
+import type { TravelDetail, DestinationInfo } from '@/api'
 
-export default function CreateTravelPage() {
+export default function EditTravelPage() {
+    const params = useParams()
     const router = useRouter()
     const currentUser = useCurrentUser()
+    const noteId = params.id as string
 
     // 表单状态
     const [formData, setFormData] = useState({
@@ -34,26 +36,51 @@ export default function CreateTravelPage() {
     const [loading, setLoading] = useState(false)
     const [uploading, setUploading] = useState(false)
     const [destinationsLoading, setDestinationsLoading] = useState(true)
+    const [initialLoading, setInitialLoading] = useState(true)
 
-    // 加载目的地列表
+    // 加载游记详情和目的地列表
     useEffect(() => {
-        console.log('开始加载目的地列表...')
-        fetchDestinations()
-    }, [])
+        if (noteId) {
+            Promise.all([fetchTravelDetail(), fetchDestinations()])
+        }
+    }, [noteId])
+
+    const fetchTravelDetail = async () => {
+        try {
+            setInitialLoading(true)
+            const response = await TravelApi.getTravelById(noteId)
+            const travel = response.data.data
+
+            // 检查权限
+            if (travel.userId !== currentUser?.uuid) {
+                toast.error('没有权限编辑此游记')
+                router.push(`/travels/${noteId}`)
+                return
+            }
+
+            setFormData({
+                title: travel.title || '',
+                destinationId: travel.destinationId || '',
+                content: travel.content || '',
+                travelDays: travel.travelDays?.toString() || '',
+                budget: travel.budget?.toString() || '',
+                coverImg: travel.coverImg || '',
+                images: travel.images || [],
+            })
+        } catch (error) {
+            console.error('获取游记详情失败:', error)
+            toast.error('获取游记详情失败')
+            router.push(`/travels/${noteId}`)
+        } finally {
+            setInitialLoading(false)
+        }
+    }
 
     const fetchDestinations = async () => {
         setDestinationsLoading(true)
         try {
-            console.log('发送目的地列表请求...')
             const response = await DestinationApi.getDestinations({ page: 1, pageSize: 100 })
-            console.log('目的地列表响应:', response)
-            console.log('响应数据结构:', response.data)
-            console.log('响应数据.data:', response.data?.data)
-            // 根据实际 API 返回结构获取数据
             const destinationsData = (response.data?.data as any)?.records || (response.data as any)?.records || []
-            console.log('解析后的目的地数据:', destinationsData)
-            console.log('是否为数组:', Array.isArray(destinationsData))
-            console.log('目的地数量:', destinationsData.length)
             setDestinations(Array.isArray(destinationsData) ? destinationsData : [])
         } catch (error) {
             console.error('获取目的地列表失败:', error)
@@ -74,11 +101,9 @@ export default function CreateTravelPage() {
         const file = e.target.files?.[0]
         if (!file) return
 
-        console.log('开始上传封面图片:', file.name)
         setUploading(true)
         try {
             const response = await FileApi.uploadImage(file)
-            console.log('封面图片上传响应:', response)
             setFormData(prev => ({ ...prev, coverImg: response.data.data }))
             toast.success('封面图片上传成功')
         } catch (error) {
@@ -94,17 +119,14 @@ export default function CreateTravelPage() {
         const files = Array.from(e.target.files || [])
         if (files.length === 0) return
 
-        console.log('开始上传图片列表:', files.map(f => f.name))
         setUploading(true)
         try {
             const uploadPromises = files.map(async (file) => {
                 const response = await FileApi.uploadImage(file)
-                console.log('图片上传响应:', response)
                 return response.data.data
             })
 
             const urls = await Promise.all(uploadPromises)
-            console.log('图片上传完成:', urls)
             setFormData(prev => ({
                 ...prev,
                 images: [...prev.images, ...urls.filter(Boolean)]
@@ -143,16 +165,11 @@ export default function CreateTravelPage() {
             toast.error('请输入游记内容')
             return
         }
-        console.log('用户:', currentUser)
-        if (!currentUser?.uuid) {
-            toast.error('请先登录')
-            return
-        }
 
         setLoading(true)
         try {
-            const createData = {
-                userId: currentUser.uuid,
+            const updateData = {
+                noteId,
                 destinationId: formData.destinationId,
                 title: formData.title,
                 coverImg: formData.coverImg,
@@ -162,15 +179,26 @@ export default function CreateTravelPage() {
                 budget: formData.budget ? parseFloat(formData.budget) : undefined,
             }
 
-            await TravelApi.createTravel(createData)
-            toast.success('游记创建成功')
-            router.push('/travels')
+            await TravelApi.updateTravel(updateData)
+            toast.success('游记更新成功')
+            router.push(`/travels/${noteId}`)
         } catch (error) {
-            console.error('创建游记失败:', error)
-            toast.error('创建游记失败')
+            console.error('更新游记失败:', error)
+            toast.error('更新游记失败')
         } finally {
             setLoading(false)
         }
+    }
+
+    if (initialLoading) {
+        return (
+            <div className="container mx-auto px-4 py-8 max-w-4xl">
+                <div className="animate-pulse space-y-4">
+                    <div className="h-8 bg-muted rounded w-1/4" />
+                    <div className="h-64 bg-muted rounded" />
+                </div>
+            </div>
+        )
     }
 
     return (
@@ -184,7 +212,7 @@ export default function CreateTravelPage() {
                 >
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
-                <h1 className="text-2xl font-bold">创建游记</h1>
+                <h1 className="text-2xl font-bold">编辑游记</h1>
             </div>
 
             {/* 表单 */}
@@ -210,10 +238,7 @@ export default function CreateTravelPage() {
                             ) : (
                                 <Select
                                     value={formData.destinationId}
-                                    onValueChange={(value) => {
-                                        console.log('选择目的地:', value)
-                                        handleInputChange('destinationId', value)
-                                    }}
+                                    onValueChange={(value) => handleInputChange('destinationId', value)}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="请选择目的地" />
@@ -232,11 +257,6 @@ export default function CreateTravelPage() {
                                         )}
                                     </SelectContent>
                                 </Select>
-                            )}
-                            {destinations.length === 0 && !destinationsLoading && (
-                                <p className="text-xs text-muted-foreground">
-                                    目的地列表为空，请检查网络连接或联系管理员
-                                </p>
                             )}
                         </div>
 
@@ -310,27 +330,24 @@ export default function CreateTravelPage() {
                             </div>
                             {formData.images.length > 0 && (
                                 <div className="grid grid-cols-4 gap-4 mt-4">
-                                    {formData.images.map((img, index) => {
-                                        console.log("img:", img)
-                                        return (
-                                            <div key={index} className="relative">
-                                                <img
-                                                    src={img}
-                                                    alt={`图片 ${index + 1}`}
-                                                    className="w-full h-24 object-cover rounded-lg"
-                                                />
-                                                <Button
-                                                    type="button"
-                                                    variant="destructive"
-                                                    size="icon"
-                                                    className="absolute top-1 right-1 h-6 w-6"
-                                                    onClick={() => removeImage(index)}
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        )
-                                    })}
+                                    {formData.images.map((img, index) => (
+                                        <div key={index} className="relative">
+                                            <img
+                                                src={img}
+                                                alt={`图片 ${index + 1}`}
+                                                className="w-full h-24 object-cover rounded-lg"
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="destructive"
+                                                size="icon"
+                                                className="absolute top-1 right-1 h-6 w-6"
+                                                onClick={() => removeImage(index)}
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
@@ -385,7 +402,7 @@ export default function CreateTravelPage() {
                                 取消
                             </Button>
                             <Button type="submit" disabled={loading || uploading}>
-                                {loading ? '创建中...' : '创建游记'}
+                                {loading ? '更新中...' : '更新游记'}
                             </Button>
                         </div>
                     </form>

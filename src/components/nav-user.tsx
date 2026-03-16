@@ -4,6 +4,7 @@ import {
     LogOutIcon,
     SettingsIcon,
     UserIcon,
+    BookmarkIcon,
 } from "lucide-react"
 import {
     Avatar,
@@ -45,10 +46,14 @@ export default function NavUser({
     const handleMenuClick = (action: string) => {
         switch (action) {
             case 'profile':
+                // 使用 userName 而不是 uuid
                 router.push(`/u/${userName}`)
                 break
+            case 'collections':
+                router.push('/collections')
+                break
             case 'settings':
-                toast.info('设置功能开发中...')
+                router.push('/settings/profile')
                 break
             case 'logout':
                 logout()
@@ -79,6 +84,10 @@ export default function NavUser({
                 <DropdownMenuItem onClick={() => handleMenuClick('profile')}>
                     <UserIcon className="mr-2 h-4 w-4" />
                     <span>个人主页</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleMenuClick('collections')}>
+                    <BookmarkIcon className="mr-2 h-4 w-4" />
+                    <span>我的收藏</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleMenuClick('settings')}>
                     <SettingsIcon className="mr-2 h-4 w-4" />

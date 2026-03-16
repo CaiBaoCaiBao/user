@@ -125,16 +125,46 @@ const refreshToken = async (): Promise<string | null> => {
 
 request.interceptors.request.use(
     async (config: InternalAxiosRequestConfig) => {
-        // 登录/注册接口不需要 token
-        const noAuthUrls = ['/auth/api/login', '/auth/api/register', '/auth/api/refresh', '/file/trip-api/upload-img'];
+        // 不需要 token 的公开接口
+        const noAuthUrls = [
+            // 认证相关
+            '/auth/api/login',
+            '/auth/api/register',
+            '/auth/api/refresh',
+            // 文件上传
+            '/file/trip-api/upload-img',
+            // 首页和搜索（游客可访问）
+            '/home/api/',
+            '/search/api/',
+            // 用户查询接口（游客可访问）
+            '/user/api/info',
+            '/user/api/batch-info',
+            '/user/api/count',
+            // 目的地查询（游客可访问）
+            '/destination/api/list',
+            '/destination/api/detail',
+            // 景点查询（游客可访问）
+            '/attraction/api/list',
+            '/attraction/api/detail',
+            // 游记查询（游客可访问）
+            '/travel-note/api/list',
+            '/travel-note/api/detail',
+            // 轮播图查询（游客可访问）
+            '/banner/api/list',
+            // 评论查询接口（游客可访问）
+            '/comment/api/list',
+            '/comment/api/count',
+            '/comment/api/count-by-target',
+            '/comment/api/batch-count'
+        ];
         const url = config.url || '';
-        
+
         if (noAuthUrls.some(u => url.includes(u))) {
             return config;
         }
 
         const token = tokenService.getAccessToken();
-        
+
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -173,8 +203,35 @@ request.interceptors.response.use(
 
         // 401 处理
         if (error.response.status === 401) {
+            const url = originalRequest.url || '';
+
+            // 如果是公开接口返回 401，直接返回错误，不触发刷新逻辑
+            const noAuthUrls = [
+                '/home/api/',
+                '/search/api/',
+                '/user/api/info',
+                '/user/api/batch-info',
+                '/user/api/count',
+                '/destination/api/list',
+                '/destination/api/detail',
+                '/attraction/api/list',
+                '/attraction/api/detail',
+                '/travel-note/api/list',
+                '/travel-note/api/detail',
+                '/banner/api/list',
+                '/comment/api/list',
+                '/comment/api/count',
+                '/comment/api/count-by-target',
+                '/comment/api/batch-count'
+            ];
+
+            if (noAuthUrls.some(u => url.includes(u))) {
+                toast.error('请求失败，请稍后重试');
+                return Promise.reject(error);
+            }
+
             // 如果是刷新 token 请求失败
-            if (originalRequest.url?.includes('/auth/api/refresh')) {
+            if (url.includes('/auth/api/refresh')) {
                 tokenService.clearAll();
                 toast.error('登录已过期，请重新登录');
                 // 跳转登录页

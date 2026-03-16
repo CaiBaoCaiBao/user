@@ -3,20 +3,21 @@ import { request } from '@/config/axios'
 // ==================== 类型定义 ====================
 
 export interface Comment {
-    id: number
     commentId: string
     userId: string
+    username?: string
+    nickname?: string
+    avatar?: string
     targetType: string
     targetId: string
     parentCommentId?: string
     content: string
     likeCount?: number
+    isLiked?: boolean
     createdAt?: string
-    updatedAt?: string
 }
 
 export interface CreateCommentDTO {
-    userId: string
     targetType: string
     targetId: string
     parentCommentId?: string
@@ -88,6 +89,14 @@ export interface LikeListParams {
     targetId?: string
 }
 
+export interface QueryLikeListDTO {
+    page?: number
+    pageSize?: number
+    userId?: string
+    targetType?: string
+    targetId?: string
+}
+
 export interface ToggleLikeDTO {
     targetType: string
     targetId: string
@@ -125,6 +134,13 @@ const LikeApi = {
      */
     getLikeCount: async (params: GetLikeCountDTO) => {
         return request.get<{ data: number }>('/like/api/count', { params })
+    },
+
+    /**
+     * 查询点赞列表
+     */
+    getLikeList: async (params?: QueryLikeListDTO) => {
+        return request.get<{ data: { records: Like[]; total: number; size: number; current: number } }>('/like/api/list', { params })
     },
 }
 

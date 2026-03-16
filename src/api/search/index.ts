@@ -9,7 +9,7 @@ export interface SearchResult<T> {
 
 export interface SearchParams {
     keyword: string
-    type?: 'all' | 'destination' | 'travel_note'
+    type?: 'all' | 'destination' | 'travel_note' | 'attraction'
     pageNum?: number
     pageSize?: number
 }
@@ -40,11 +40,27 @@ export interface TravelNote {
     createdAt?: string
 }
 
+export interface Attraction {
+    aid: string
+    destinationId: string
+    name: string
+    images?: string[]
+    address?: string
+    phone?: string
+    description?: string
+    longitude?: number
+    latitude?: number
+    viewCount?: number
+    createdAt?: string
+}
+
 export interface AllSearchResult {
     destinations: Destination[]
     travelNotes: TravelNote[]
+    attractions: Attraction[]
     travelNoteTotal?: number
     destinationTotal?: number
+    attractionTotal?: number
 }
 
 // ==================== 搜索 API ====================

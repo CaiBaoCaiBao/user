@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { ArrowLeft, Camera, Save } from 'lucide-react'
+import { ArrowLeft, Camera, Save, User, Mail, Calendar, MapPin, Link as LinkIcon } from 'lucide-react'
 import { useCurrentUser, useUserActions } from '@/store/userStore'
 
 export default function EditProfilePage() {
@@ -20,6 +20,7 @@ export default function EditProfilePage() {
     const { updateUser } = useUserActions()
     const [loading, setLoading] = useState(false)
     const [uploading, setUploading] = useState(false)
+    const [hasChanges, setHasChanges] = useState(false)
     const [profile, setProfile] = useState<Partial<UserProfile>>({
         nickName: '',
         avatar: '',
@@ -49,6 +50,21 @@ export default function EditProfilePage() {
         fetchProfile()
     }, [])
 
+    // 检测是否有修改
+    useEffect(() => {
+        const originalProfile = {
+            nickName: currentUser?.nickName || '',
+            avatar: currentUser?.avatar || '',
+            bio: currentUser?.bio || '',
+            phone: currentUser?.phone || '',
+            birthday: currentUser?.birthday || '',
+        }
+        const hasChanged = Object.keys(profile).some(
+            key => profile[key as keyof UserProfile] !== originalProfile[key as keyof UserProfile]
+        )
+        setHasChanges(hasChanged)
+    }, [profile, currentUser])
+
     // 处理头像上传
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -68,21 +84,13 @@ export default function EditProfilePage() {
 
         try {
             setUploading(true)
-            const formData = new FormData()
-            formData.append('file', file)
+            const response = await UserApi.uploadAvatar(file)
 
-            const response = await fetch('/file/trip-api/upload-img', {
-                method: 'POST',
-                body: formData,
-            })
-
-            const result = await response.json()
-
-            if (result.success) {
-                setProfile({ ...profile, avatar: result.data })
+            if (response.data.success) {
+                setProfile({ ...profile, avatar: response.data.data.url })
                 toast.success('头像上传成功')
             } else {
-                toast.error(result.message || '头像上传失败')
+                toast.error(response.data.message || '头像上传失败')
             }
         } catch (error) {
             console.error('上传头像失败:', error)
@@ -92,8 +100,48 @@ export default function EditProfilePage() {
         }
     }
 
+    // 验证表单
+    const validateForm = (): boolean => {
+        // 验证昵称
+        if (!profile.nickName || profile.nickName.trim().length === 0) {
+            toast.error('请输入昵称')
+            return false
+        }
+
+        if (profile.nickName.length > 50) {
+            toast.error('昵称不能超过50个字符')
+            return false
+        }
+
+        // 验证手机号（如果填写了）
+        if (profile.phone && profile.phone.trim().length > 0) {
+            const phoneRegex = /^1[3-9]\d{9}$/
+            if (!phoneRegex.test(profile.phone)) {
+                toast.error('请输入正确的手机号')
+                return false
+            }
+        }
+
+        // 验证生日（如果填写了）
+        if (profile.birthday) {
+            const birthDate = new Date(profile.birthday)
+            const now = new Date()
+            const age = now.getFullYear() - birthDate.getFullYear()
+            if (age < 0 || age > 150) {
+                toast.error('请输入有效的生日')
+                return false
+            }
+        }
+
+        return true
+    }
+
     // 保存资料
     const handleSave = async () => {
+        if (!validateForm()) {
+            return
+        }
+
         try {
             setLoading(true)
             const response = await UserApi.updateUserProfile({
@@ -105,10 +153,6 @@ export default function EditProfilePage() {
             })
 
             if (response.data.success) {
-                // 如果返回了新的 accessToken，更新本地存储
-                if (response.data.data?.accessToken) {
-                    localStorage.setItem('accessToken', response.data.data.accessToken)
-                }
                 // 更新用户状态
                 updateUser({
                     nickName: profile.nickName,
@@ -118,8 +162,11 @@ export default function EditProfilePage() {
                     birthday: profile.birthday,
                 })
                 toast.success('资料更新成功')
+                setHasChanges(false)
                 // 返回上一页
-                router.back()
+                setTimeout(() => {
+                    router.back()
+                }, 1000)
             } else {
                 toast.error(response.data.message || '更新失败')
             }
@@ -133,7 +180,13 @@ export default function EditProfilePage() {
 
     // 返回上一页
     const handleBack = () => {
-        router.back()
+        if (hasChanges) {
+            if (confirm('您有未保存的修改，确定要离开吗？')) {
+                router.back()
+            }
+        } else {
+            router.back()
+        }
     }
 
     const displayName = profile.nickName || currentUser?.userName || ''
@@ -153,15 +206,15 @@ export default function EditProfilePage() {
                 <CardContent className="p-6">
                     <div className="flex items-center gap-6">
                         <div className="relative">
-                            <Avatar className="h-24 w-24">
+                            <Avatar className="h-24 w-24 border-4 border-background">
                                 <AvatarImage src={profile.avatar} alt={displayName} />
-                                <AvatarFallback className="text-2xl">
+                                <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
                                     {displayName?.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
                             <label
                                 htmlFor="avatar-upload"
-                                className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-2 cursor-pointer hover:bg-primary/90 transition-colors"
+                                className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-2 cursor-pointer hover:bg-primary/90 transition-colors shadow-lg"
                             >
                                 <Camera className="h-4 w-4" />
                                 <input
@@ -173,8 +226,13 @@ export default function EditProfilePage() {
                                     disabled={uploading}
                                 />
                             </label>
+                            {uploading && (
+                                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                                </div>
+                            )}
                         </div>
-                        <div>
+                        <div className="flex-1">
                             <h3 className="font-semibold mb-1">头像</h3>
                             <p className="text-sm text-muted-foreground">
                                 {uploading ? '上传中...' : '点击相机图标更换头像'}
@@ -187,6 +245,31 @@ export default function EditProfilePage() {
                 </CardContent>
             </Card>
 
+            {/* 账号信息卡片（只读） */}
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle>账号信息</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                        <User className="h-5 w-5 text-muted-foreground" />
+                        <div className="flex-1">
+                            <p className="text-sm text-muted-foreground">用户名</p>
+                            <p className="font-medium">{currentUser?.userName}</p>
+                        </div>
+                    </div>
+                    {currentUser?.email && (
+                        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                            <Mail className="h-5 w-5 text-muted-foreground" />
+                            <div className="flex-1">
+                                <p className="text-sm text-muted-foreground">邮箱</p>
+                                <p className="font-medium">{currentUser.email}</p>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             {/* 基本信息卡片 */}
             <Card className="mb-6">
                 <CardHeader>
@@ -195,7 +278,9 @@ export default function EditProfilePage() {
                 <CardContent className="space-y-4">
                     {/* 昵称 */}
                     <div className="space-y-2">
-                        <Label htmlFor="nickname">昵称</Label>
+                        <Label htmlFor="nickname" className="flex items-center gap-2">
+                            昵称 <span className="text-red-500">*</span>
+                        </Label>
                         <Input
                             id="nickname"
                             placeholder="请输入昵称"
@@ -203,9 +288,14 @@ export default function EditProfilePage() {
                             onChange={(e) => setProfile({ ...profile, nickName: e.target.value })}
                             maxLength={50}
                         />
-                        <p className="text-xs text-muted-foreground">
-                            最多 50 个字符
-                        </p>
+                        <div className="flex justify-between">
+                            <p className="text-xs text-muted-foreground">
+                                最多 50 个字符
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {profile.nickName.length}/50
+                            </p>
+                        </div>
                     </div>
 
                     {/* 个人简介 */}
@@ -218,10 +308,16 @@ export default function EditProfilePage() {
                             onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
                             maxLength={200}
                             rows={4}
+                            className="resize-none"
                         />
-                        <p className="text-xs text-muted-foreground">
-                            最多 200 个字符
-                        </p>
+                        <div className="flex justify-between">
+                            <p className="text-xs text-muted-foreground">
+                                让其他人更好地了解你
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {profile.bio.length}/200
+                            </p>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -234,26 +330,39 @@ export default function EditProfilePage() {
                 <CardContent className="space-y-4">
                     {/* 手机号 */}
                     <div className="space-y-2">
-                        <Label htmlFor="phone">手机号</Label>
+                        <Label htmlFor="phone" className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            手机号
+                        </Label>
                         <Input
                             id="phone"
                             type="tel"
-                            placeholder="请输入手机号"
+                            placeholder="请输入手机号（选填）"
                             value={profile.phone}
                             onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
                             maxLength={11}
                         />
+                        <p className="text-xs text-muted-foreground">
+                            用于接收重要通知，选填
+                        </p>
                     </div>
 
                     {/* 生日 */}
                     <div className="space-y-2">
-                        <Label htmlFor="birthday">生日</Label>
+                        <Label htmlFor="birthday" className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            生日
+                        </Label>
                         <Input
                             id="birthday"
                             type="date"
                             value={profile.birthday}
                             onChange={(e) => setProfile({ ...profile, birthday: e.target.value })}
+                            max={new Date().toISOString().split('T')[0]}
                         />
+                        <p className="text-xs text-muted-foreground">
+                            我们会在你生日时送上祝福，选填
+                        </p>
                     </div>
                 </CardContent>
             </Card>
@@ -269,7 +378,7 @@ export default function EditProfilePage() {
                 </Button>
                 <Button
                     onClick={handleSave}
-                    disabled={loading}
+                    disabled={loading || !hasChanges}
                     className="flex-1"
                 >
                     <Save className="h-4 w-4 mr-2" />

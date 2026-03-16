@@ -12,9 +12,9 @@ export interface Destination {
     latitude?: number
     coverImg?: string
     description?: string
-    parentId?: string
+    province?: string
+    city?: string
     level?: number
-    countryCode?: string
     bestSeason?: string
     travelDays?: number
     viewCount?: number
@@ -39,6 +39,17 @@ export interface DestinationDetailParams {
     destinationId: string
 }
 
+export interface PageResult<T> {
+    records: T[]
+    total: number
+    page: number
+    pageSize: number
+}
+
+export interface DestinationListResponse {
+    data: PageResult<Destination>
+}
+
 // ==================== 目的地 API ====================
 
 const DestinationApi = {
@@ -46,7 +57,7 @@ const DestinationApi = {
      * 获取目的地列表
      */
     getDestinations: async (params?: DestinationListParams) => {
-        return request.get<{ data: Destination[]; total: number }>('/destination/api/list', { params })
+        return request.get<DestinationListResponse>('/destination/api/list', { params })
     },
 
     /**
