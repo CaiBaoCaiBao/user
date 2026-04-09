@@ -87,6 +87,11 @@ export interface CreateTravelDTO {
 
 export interface UpdateTravelDTO extends Partial<CreateTravelDTO> {}
 
+export interface SetTopDTO {
+    noteId: string
+    isTop: boolean
+}
+
 // ==================== 旅行攻略 API ====================
 
 const TravelApi = {
@@ -102,6 +107,15 @@ const TravelApi = {
      */
     getTravelById: async (noteId: string) => {
         return request.get<{ data: TravelDetail }>('/travel-note/api/detail', {
+            params: { noteId }
+        })
+    },
+
+    /**
+     * 获取我的旅行攻略详情（可访问自己的草稿）
+     */
+    getMyTravelById: async (noteId: string) => {
+        return request.get<{ data: TravelDetail }>('/travel-note/api/my-detail', {
             params: { noteId }
         })
     },
@@ -137,21 +151,56 @@ const TravelApi = {
     },
 
     /**
-     * 获取我的游记列表
+     * 获取我的游记列表（需要登录，可查看所有状态的游记）
      */
-    getMyTravels: async (page: number = 1, pageSize: number = 10, userId?: string) => {
-        return request.get<{ data: { records: Travel[]; total: number; size: number; current: number } }>('/travel-note/api/list', {
-            params: { pageNum: page, pageSize, userId }
-        })
+    getMyTravels: async (params?: TravelListParams) => {
+        return request.get<{ data: { records: Travel[]; total: number; size: number; current: number } }>('/travel-note/api/my-list', { params })
     },
 
     /**
      * 获取热门游记
      */
     getHotTravels: async (pageSize: number = 10) => {
-        return request.get<{ data: { records: Travel[]; total: number; size: number; current: number } }>('/travel-note/api/list', {
-            params: { pageNum: 1, pageSize, status: 1 }
+        return request.get<{ data: { records: Travel[]; total: number; size: number; current: number } }>('/travel-note/api/hot', {
+            params: { pageNum: 1, pageSize }
         })
+    },
+
+    /**
+     * 保存游记草稿
+     */
+    saveDraft: async (data: CreateTravelDTO) => {
+        return request.post('/travel-note/api/save-draft', data)
+    },
+
+    /**
+     * 发布草稿
+     */
+    publishDraft: async (data: UpdateTravelDTO) => {
+        return request.post('/travel-note/api/publish-draft', data)
+    },
+
+    /**
+     * 获取我的草稿列表
+     */
+    getMyDrafts: async (page: number = 1, pageSize: number = 10, userId?: string) => {
+        return request.get<{ data: { records: Travel[]; total: number; size: number; current: number } }>('/travel-note/api/list', {
+            params: { pageNum: page, pageSize, userId, status: -1 }
+        })
+    },
+
+    /**
+     * 增加游记浏览数
+     */
+    incrementViewCount: async (noteId: string) => {
+        return request.post('/travel-note/api/increment-view', { noteId })
+    },
+
+    /**
+     * 置顶/取消置顶游记
+     */
+    setTop: async (data: SetTopDTO) => {
+        return request.post('/travel-note/api/set-top', data)
     },
 }
 

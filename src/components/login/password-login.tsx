@@ -33,21 +33,11 @@ export default function PasswordLogin({
     return (<>
         <form id="password-login-form" onSubmit={async (e) => {
             e.preventDefault()
-            console.log('表单提交被触发')
-            console.log('表单状态:', form.state)
             try {
-                // 尝试手动触发表单提交
                 const values = form.state.values
-                console.log('当前表单值:', values)
-                
-                // 手动调用验证和提交
                 await form.validators?.onSubmit?.({ value: values })
-                console.log('验证完成，准备调用 onSubmit')
-                
-                // 手动调用 onSubmit
                 if (form.options.onSubmit) {
                     await form.options.onSubmit({ value: values })
-                    console.log('onSubmit 执行完成')
                 }
             } catch (error) {
                 console.error('表单提交失败:', error)

@@ -3,15 +3,16 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { UserApi, TravelApi, SocialApi } from '@/api'
-import type { UserInfo, TravelInfo, Collect, Like } from '@/api'
-import { Card, CardContent } from '@/components/ui/card'
+import type { UserInfo, TravelInfo, Like } from '@/api'
+import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { MapPin, Calendar, Eye, Heart, Bookmark, FileText, Settings, UserPlus, UserMinus, Mail, Phone,MessageCircle } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Calendar, Eye, Heart, Bookmark, FileText, Settings, Mail, Phone, MessageCircle } from 'lucide-react'
 import { useCurrentUser } from '@/store/userStore'
 import { toast } from 'sonner'
+import TravelCard from '@/components/travels/travel-card'
 
 export default function UserPage({ params }: { params: Promise<{ uid: string }> }) {
     const router = useRouter()
@@ -21,23 +22,27 @@ export default function UserPage({ params }: { params: Promise<{ uid: string }> 
     const [travels, setTravels] = useState<TravelInfo[]>([])
     const [likes, setLikes] = useState<Like[]>([])
     const [likeTravels, setLikeTravels] = useState<TravelInfo[]>([])
-    const [collections, setCollections] = useState<Collect[]>([])
-    const [collectionTravels, setCollectionTravels] = useState<TravelInfo[]>([])
     const [loading, setLoading] = useState(true)
     const [userLoading, setUserLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<'travels' | 'likes' | 'collections'>('travels')
+    const [activeTab, setActiveTab] = useState<'travels' | 'drafts' | 'likes'>('travels')
     const [page, setPage] = useState(1)
     const [total, setTotal] = useState(0)
-    const [isFollowing, setIsFollowing] = useState(false)
-    const [followingLoading, setFollowingLoading] = useState(false)
+    const [travelTotalCount, setTravelTotalCount] = useState(0) // 用户游记总数
+    const [draftTotalCount, setDraftTotalCount] = useState(0) // 用户草稿总数
+    const [totalViewCount, setTotalViewCount] = useState(0) // 用户总浏览数
+    const [totalLikeCount, setTotalLikeCount] = useState(0) // 用户总获赞数
     const pageSize = 12
 
     // 获取用户信息（包含资料）
     const fetchUserInfo = async () => {
         try {
             setUserLoading(true)
-            // uid 参数实际上是 userName，使用 getUserByUserName 方法
+            console.log('开始获取用户信息，userName:', uid)
+            // uid 参数实际上是 userName（用户名），使用 getUserByUserName 方法
+            // 路由设计：/u/[uid] 中的 uid 存储的是 userName，而不是用户 UUID
             const response = await UserApi.getUserByUserName(uid)
+            console.log('用户信息响应:', response.data.data)
+            console.log('用户UUID:', response.data.data?.uuid)
             setUserInfo(response.data.data)
         } catch (error) {
             console.error('获取用户信息失败:', error)
@@ -47,27 +52,97 @@ export default function UserPage({ params }: { params: Promise<{ uid: string }> 
         }
     }
 
+    // 判断是否是当前用户
+    const isCurrentUser = currentUser?.uuid === userInfo?.uuid
+
     // 获取用户游记
     const fetchUserTravels = async () => {
         try {
             setLoading(true)
-            // 如果是当前用户，获取所有游记（包括草稿）；否则只获取已发布的游记
-            const response = await TravelApi.getTravels({
+            console.log('获取用户游记，userId:', userInfo?.uuid, 'isCurrentUser:', isCurrentUser)
+            console.log('currentUser:', currentUser)
+            console.log('currentUser.uuid:', currentUser?.uuid)
+            console.log('userInfo.uuid:', userInfo?.uuid)
+
+            // 查看自己的主页时，调用 my-list 接口（显示所有状态的游记）
+            // 查看别人的主页时，调用 list 接口（只显示审核通过的游记）
+            const requestParams: any = {
                 pageNum: page,
                 pageSize,
-                userId: userInfo?.uuid,
-                status: isCurrentUser ? undefined : 1,
-            })
+            }
+
+            let response
+            if (isCurrentUser) {
+                console.log('查看自己的主页，调用 my-list 接口，显示所有状态的游记')
+                response = await TravelApi.getMyTravels(requestParams)
+            } else {
+                console.log('查看别人的主页，调用 list 接口，只显示审核通过的游记')
+                requestParams.userId = userInfo?.uuid
+                requestParams.status = 1 // 只显示审核通过的游记
+                response = await TravelApi.getTravels(requestParams)
+            }
+
+            console.log('请求参数:', requestParams)
             console.log('游记响应:', response.data)
             const pageData = response.data.data
             const travelData = pageData?.records || []
+            console.log('游记数据:', travelData)
             setTravels(Array.isArray(travelData) ? travelData : [])
             setTotal(pageData?.total || 0)
+
+            // 获取用户游记总数和统计数据（第一页时获取）
+            if (page === 1) {
+                setTravelTotalCount(pageData?.total || 0)
+                // 计算总浏览数和总获赞数
+                const totalViews = travelData.reduce((sum: number, t: any) => sum + (t.viewCount || 0), 0)
+                const totalLikes = travelData.reduce((sum: number, t: any) => sum + (t.likeCount || 0), 0)
+                setTotalViewCount(totalViews)
+                setTotalLikeCount(totalLikes)
+            }
         } catch (error) {
             console.error('获取用户游记失败:', error)
             setTravels([])
         } finally {
             setLoading(false)
+        }
+    }
+
+    // 获取用户草稿
+    const fetchUserDrafts = async () => {
+        try {
+            setLoading(true)
+            console.log('获取用户草稿，userId:', userInfo?.uuid)
+
+            const response = await TravelApi.getMyDrafts(page, pageSize, userInfo?.uuid)
+            console.log('草稿响应:', response.data)
+            const pageData = response.data.data
+            const draftData = pageData?.records || []
+            console.log('草稿数据:', draftData)
+            setTravels(Array.isArray(draftData) ? draftData : [])
+            setTotal(pageData?.total || 0)
+
+            // 获取用户草稿总数（第一页时获取）
+            if (page === 1) {
+                setDraftTotalCount(pageData?.total || 0)
+            }
+        } catch (error) {
+            console.error('获取用户草稿失败:', error)
+            setTravels([])
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // 获取用户草稿数量（仅用于统计）
+    const fetchUserDraftCount = async () => {
+        try {
+            console.log('获取用户草稿数量，userId:', userInfo?.uuid)
+            const response = await TravelApi.getMyDrafts(1, 1, userInfo?.uuid)
+            const pageData = response.data.data
+            setDraftTotalCount(pageData?.total || 0)
+        } catch (error) {
+            console.error('获取用户草稿数量失败:', error)
+            setDraftTotalCount(0)
         }
     }
 
@@ -79,19 +154,32 @@ export default function UserPage({ params }: { params: Promise<{ uid: string }> 
                 page,
                 pageSize,
                 userId: userInfo?.uuid,
-                targetType: 'travel-note',
+                targetType: 'travel_note',
             })
             console.log('点赞响应:', response.data)
             const pageData = response.data.data
             const likeData = pageData?.records || []
             setLikes(Array.isArray(likeData) ? likeData : [])
 
-            // 获取点赞的游记详情
+            // 后端已经返回了完整的游记信息，直接转换为游记格式
             if (likeData.length > 0) {
-                const noteIds = likeData.map((l: any) => l.targetId)
-                const travelsResponse = await TravelApi.getBatchTravelDetail(noteIds)
-                const travelData = travelsResponse.data.data || []
-                setLikeTravels(Array.isArray(travelData) ? travelData : [])
+                const travels: TravelInfo[] = likeData.map((like: any): TravelInfo => ({
+                    id: 0,
+                    noteId: like.targetId,
+                    userId: like.authorId || '',
+                    destinationId: '',
+                    title: like.targetTitle || '游记标题',
+                    content: like.targetContent || '',
+                    coverImg: like.targetCover || '',
+                    userName: like.authorUserName || '',
+                    nickName: like.authorName || '',
+                    userAvatar: like.authorAvatar || '',
+                    viewCount: like.viewCount || 0,
+                    commentCount: like.commentCount || 0,
+                    likeCount: like.likeCount || 0,
+                    collectionCount: like.collectionCount || 0,
+                }))
+                setLikeTravels(travels)
             } else {
                 setLikeTravels([])
             }
@@ -106,53 +194,27 @@ export default function UserPage({ params }: { params: Promise<{ uid: string }> 
         }
     }
 
-    // 获取用户收藏列表
-    const fetchUserCollections = async () => {
-        try {
-            setLoading(true)
-            const response = await SocialApi.getCollectionList({
-                page,
-                pageSize,
-                userId: userInfo?.uuid,
-                targetType: 'travel-note',
-            })
-            console.log('收藏响应:', response.data)
-            const pageData = response.data.data
-            const collectionData = pageData?.data || []
-            setCollections(Array.isArray(collectionData) ? collectionData : [])
 
-            // 获取收藏的游记详情
-            if (collectionData.length > 0) {
-                const noteIds = collectionData.map((c: any) => c.targetId)
-                const travelsResponse = await TravelApi.getBatchTravelDetail(noteIds)
-                const travelData = travelsResponse.data.data || []
-                setCollectionTravels(Array.isArray(travelData) ? travelData : [])
-            } else {
-                setCollectionTravels([])
-            }
-
-            setTotal(pageData?.total || 0)
-        } catch (error) {
-            console.error('获取用户收藏失败:', error)
-            setCollections([])
-            setCollectionTravels([])
-        } finally {
-            setLoading(false)
-        }
-    }
 
     useEffect(() => {
         fetchUserInfo()
     }, [uid])
 
+    // 获取用户信息后，立即获取统计数据
     useEffect(() => {
         if (userInfo?.uuid) {
+            // 获取游记数据
             if (activeTab === 'travels') {
                 fetchUserTravels()
+            } else if (activeTab === 'drafts') {
+                fetchUserDrafts()
             } else if (activeTab === 'likes') {
                 fetchUserLikes()
-            } else if (activeTab === 'collections') {
-                fetchUserCollections()
+            }
+
+            // 如果是当前用户，获取草稿数量统计
+            if (isCurrentUser) {
+                fetchUserDraftCount()
             }
         }
     }, [userInfo?.uuid, page, activeTab])
@@ -167,33 +229,9 @@ export default function UserPage({ params }: { params: Promise<{ uid: string }> 
         router.push('/settings/profile')
     }
 
-    // 判断是否是当前用户
-    const isCurrentUser = currentUser?.uuid === userInfo?.uuid
-
     // 使用用户信息中的资料字段
     const displayName = userInfo?.nickName || userInfo?.userName || ''
     const avatar = userInfo?.avatar || ''
-
-    // 关注/取消关注
-    const handleFollow = async () => {
-        if (!currentUser) {
-            toast.error('请先登录')
-            return
-        }
-
-        try {
-            setFollowingLoading(true)
-            // TODO: 调用关注/取消关注API
-            // await UserApi.followUser(userInfo?.uuid)
-            setIsFollowing(!isFollowing)
-            toast.success(isFollowing ? '已取消关注' : '关注成功')
-        } catch (error) {
-            console.error('关注操作失败:', error)
-            toast.error('操作失败')
-        } finally {
-            setFollowingLoading(false)
-        }
-    }
 
     // 格式化日期
     const formatDate = (dateString?: string) => {
@@ -212,10 +250,15 @@ export default function UserPage({ params }: { params: Promise<{ uid: string }> 
         setLikeTravels(prev => prev.map(t =>
             t.noteId === noteId ? { ...t, ...updates } : t
         ))
-        // 更新收藏列表
-        setCollectionTravels(prev => prev.map(t =>
-            t.noteId === noteId ? { ...t, ...updates } : t
-        ))
+
+        // 如果在喜欢标签页，且点赞数减少了，说明取消了点赞，需要从列表中移除
+        if (activeTab === 'likes' && updates.likeCount !== undefined) {
+            const travel = likeTravels.find(t => t.noteId === noteId)
+            if (travel && updates.likeCount < travel.likeCount) {
+                setLikeTravels(prev => prev.filter(t => t.noteId !== noteId))
+                setTotal(prev => Math.max(0, prev - 1))
+            }
+        }
     }
 
     return (
@@ -260,28 +303,6 @@ export default function UserPage({ params }: { params: Promise<{ uid: string }> 
                                         <p className="text-muted-foreground">@{userInfo.userName}</p>
                                     </div>
                                     <div className="flex gap-2">
-                                        {!isCurrentUser && (
-                                            <Button
-                                                variant={isFollowing ? "outline" : "default"}
-                                                size="sm"
-                                                onClick={handleFollow}
-                                                disabled={followingLoading}
-                                            >
-                                                {followingLoading ? (
-                                                    '处理中...'
-                                                ) : isFollowing ? (
-                                                    <>
-                                                        <UserMinus className="w-4 h-4 mr-2" />
-                                                        取消关注
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <UserPlus className="w-4 h-4 mr-2" />
-                                                        关注
-                                                    </>
-                                                )}
-                                            </Button>
-                                        )}
                                         {isCurrentUser && (
                                             <Button variant="outline" size="sm" onClick={goToEditProfile}>
                                                 <Settings className="w-4 h-4 mr-2" />
@@ -324,17 +345,24 @@ export default function UserPage({ params }: { params: Promise<{ uid: string }> 
                                 <div className="flex gap-6 text-sm">
                                     <div className="flex items-center gap-2">
                                         <FileText className="w-4 h-4 text-primary" />
-                                        <span className="font-medium">{total}</span>
+                                        <span className="font-medium">{travelTotalCount}</span>
                                         <span className="text-muted-foreground">篇游记</span>
                                     </div>
+                                    {isCurrentUser && (
+                                        <div className="flex items-center gap-2">
+                                            <FileText className="w-4 h-4 text-muted-foreground" />
+                                            <span className="font-medium">{draftTotalCount}</span>
+                                            <span className="text-muted-foreground">篇草稿</span>
+                                        </div>
+                                    )}
                                     <div className="flex items-center gap-2">
                                         <Eye className="w-4 h-4 text-primary" />
-                                        <span className="font-medium">{travels.reduce((sum, t) => sum + (t.viewCount || 0), 0)}</span>
+                                        <span className="font-medium">{totalViewCount}</span>
                                         <span className="text-muted-foreground">浏览</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <Heart className="w-4 h-4 text-primary" />
-                                        <span className="font-medium">{travels.reduce((sum, t) => sum + (t.likeCount || 0), 0)}</span>
+                                        <span className="font-medium">{totalLikeCount}</span>
                                         <span className="text-muted-foreground">获赞</span>
                                     </div>
                                 </div>
@@ -353,20 +381,34 @@ export default function UserPage({ params }: { params: Promise<{ uid: string }> 
             {/* 标签页 */}
             {userInfo && (
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="mb-6">
-                    <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
+                    <TabsList className={`grid w-full max-w-md mx-auto ${isCurrentUser ? 'grid-cols-3' : 'grid-cols-2'}`}>
                         <TabsTrigger value="travels">游记</TabsTrigger>
+                        {isCurrentUser && (
+                            <TabsTrigger value="drafts">草稿</TabsTrigger>
+                        )}
                         <TabsTrigger value="likes">喜欢</TabsTrigger>
-                        <TabsTrigger value="collections">收藏</TabsTrigger>
                     </TabsList>
                 </Tabs>
             )}
 
-            {/* 创建按钮（仅当前用户可见） */}
-            {isCurrentUser && activeTab === 'travels' && (
-                <div className="mb-6 flex justify-end">
-                    <Button onClick={() => router.push('/travels/create')}>
-                        <FileText className="w-4 h-4 mr-2" />
-                        创建游记
+            {/* 操作按钮（仅当前用户可见） */}
+            {isCurrentUser && (
+                <div className="mb-6 flex justify-end gap-2">
+                    {activeTab === 'travels' && (
+                        <Button onClick={() => router.push('/travels/create')}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            创建游记
+                        </Button>
+                    )}
+                    {activeTab === 'drafts' && (
+                        <Button onClick={() => router.push('/travels/create')}>
+                            <FileText className="w-4 h-4 mr-2" />
+                            创建游记
+                        </Button>
+                    )}
+                    <Button variant="outline" onClick={() => router.push('/collections')}>
+                        <Bookmark className="w-4 h-4 mr-2" />
+                        查看全部收藏
                     </Button>
                 </div>
             )}
@@ -393,10 +435,64 @@ export default function UserPage({ params }: { params: Promise<{ uid: string }> 
                                     <TravelCard
                                         key={travel.noteId}
                                         travel={travel}
-                                        goToTravelDetail={goToTravelDetail}
-                                        isCurrentUser={isCurrentUser}
-                                        activeTab={activeTab}
-                                        router={router}
+                                        showAuthor={true}
+                                        showActions={isCurrentUser}
+                                        onTravelUpdate={handleTravelUpdate}
+                                    />
+                                ))}
+                            </div>
+
+                            {/* 分页 */}
+                            {total > pageSize && (
+                                <div className="flex justify-center gap-2 mt-8">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                        disabled={page === 1}
+                                    >
+                                        上一页
+                                    </Button>
+                                    <Badge variant="secondary" className="px-4 py-2">
+                                        第 {page} 页
+                                    </Badge>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setPage((p) => p + 1)}
+                                        disabled={page * pageSize >= total}
+                                    >
+                                        下一页
+                                    </Button>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </>
+            )}
+
+            {/* 草稿列表 */}
+            {activeTab === 'drafts' && (
+                <>
+                    {loading ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {[...Array(6)].map((_, i) => (
+                                <Card key={i} className="h-96 animate-pulse" />
+                            ))}
+                        </div>
+                    ) : travels.length === 0 ? (
+                        <Card>
+                            <CardContent className="p-12 text-center text-muted-foreground">
+                                还没有草稿，快去创建吧！
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {travels.map(travel => (
+                                    <TravelCard
+                                        key={travel.noteId}
+                                        travel={travel}
+                                        showAuthor={false}
+                                        showActions={true}
                                         onTravelUpdate={handleTravelUpdate}
                                     />
                                 ))}
@@ -447,17 +543,22 @@ export default function UserPage({ params }: { params: Promise<{ uid: string }> 
                     ) : (
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {likeTravels.map(travel => (
-                                    <TravelCard
-                                        key={travel.noteId}
-                                        travel={travel}
-                                        goToTravelDetail={goToTravelDetail}
-                                        isCurrentUser={isCurrentUser}
-                                        activeTab={activeTab}
-                                        router={router}
-                                        onTravelUpdate={handleTravelUpdate}
-                                    />
-                                ))}
+                                {likeTravels.map((travel) => {
+                                    // 找到对应的点赞记录
+                                    const like = likes.find(l => l.targetId === travel.noteId)
+                                    return (
+                                        <LikeTravelCard
+                                            key={travel.noteId}
+                                            travel={travel}
+                                            like={like}
+                                            goToTravelDetail={goToTravelDetail}
+                                            isCurrentUser={isCurrentUser}
+                                            activeTab={activeTab}
+                                            router={router}
+                                            onTravelUpdate={handleTravelUpdate}
+                                        />
+                                    )
+                                })}
                             </div>
 
                             {/* 分页 */}
@@ -487,70 +588,15 @@ export default function UserPage({ params }: { params: Promise<{ uid: string }> 
                 </>
             )}
 
-            {/* 收藏列表 */}
-            {activeTab === 'collections' && (
-                <>
-                    {loading ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {[...Array(6)].map((_, i) => (
-                                <Card key={i} className="h-96 animate-pulse" />
-                            ))}
-                        </div>
-                    ) : collectionTravels.length === 0 ? (
-                        <Card>
-                            <CardContent className="p-12 text-center text-muted-foreground">
-                                {isCurrentUser ? '还没有收藏游记' : '该用户还没有收藏游记'}
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {collectionTravels.map(travel => (
-                                    <TravelCard
-                                        key={travel.noteId}
-                                        travel={travel}
-                                        goToTravelDetail={goToTravelDetail}
-                                        isCurrentUser={isCurrentUser}
-                                        activeTab={activeTab}
-                                        router={router}
-                                        onTravelUpdate={handleTravelUpdate}
-                                    />
-                                ))}
-                            </div>
 
-                            {/* 分页 */}
-                            {total > pageSize && (
-                                <div className="flex justify-center gap-2 mt-8">
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                                        disabled={page === 1}
-                                    >
-                                        上一页
-                                    </Button>
-                                    <Badge variant="secondary" className="px-4 py-2">
-                                        第 {page} 页
-                                    </Badge>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setPage((p) => p + 1)}
-                                        disabled={page * pageSize >= total}
-                                    >
-                                        下一页
-                                    </Button>
-                                </div>
-                            )}
-                        </>
-                    )}
-                </>
-            )}
         </div>
     )
 }
 
-// 游记卡片组件
-function TravelCard({
+// 喜欢游记卡片组件（显示点赞时间）
+function LikeTravelCard({
     travel,
+    like,
     goToTravelDetail,
     isCurrentUser,
     activeTab,
@@ -558,6 +604,7 @@ function TravelCard({
     onTravelUpdate,
 }: {
     travel: TravelInfo
+    like?: Like
     goToTravelDetail: (noteId: string) => void
     isCurrentUser: boolean
     activeTab: string
@@ -565,40 +612,24 @@ function TravelCard({
     onTravelUpdate: (noteId: string, updates: Partial<TravelInfo>) => void
 }) {
     const currentUser = useCurrentUser()
-    const [isLiked, setIsLiked] = useState(false)
+    const [isLiked, setIsLiked] = useState(true) // 在喜欢列表中默认为已点赞
     const [isCollected, setIsCollected] = useState(false)
     const [likeCount, setLikeCount] = useState(travel.likeCount || 0)
     const [collectionCount, setCollectionCount] = useState(travel.collectionCount || 0)
     const [isProcessingLike, setIsProcessingLike] = useState(false)
     const [isProcessingCollection, setIsProcessingCollection] = useState(false)
 
-    // 获取点赞和收藏状态
+    // 获取收藏状态
     useEffect(() => {
         if (currentUser?.uuid && travel.noteId) {
-            fetchSocialStatus()
+            fetchCollectionStatus()
         }
     }, [currentUser?.uuid, travel.noteId])
 
-    const fetchSocialStatus = async () => {
+    const fetchCollectionStatus = async () => {
         if (!currentUser?.uuid || !travel.noteId) return
 
         try {
-            // 获取点赞状态
-            const likeResponse = await SocialApi.checkLikeStatus({
-                targetType: 'travel_note',
-                targetId: travel.noteId,
-            })
-            const likeData = likeResponse.data.data
-            setIsLiked(likeData?.isLiked || false)
-            if (likeData?.likeCount !== undefined) {
-                setLikeCount(likeData.likeCount)
-            }
-        } catch (error) {
-            console.error('获取点赞状态失败:', error)
-        }
-
-        try {
-            // 获取收藏状态
             const collectResponse = await SocialApi.checkCollectionStatus({
                 targetType: 'travel_note',
                 targetId: travel.noteId,
@@ -609,12 +640,18 @@ function TravelCard({
         }
     }
 
-    // 点赞/取消点赞
+    // 点赞/取消点赞（仅当前用户可以操作）
     const handleToggleLike = async (e: React.MouseEvent) => {
         e.stopPropagation()
 
         if (!currentUser?.uuid) {
             toast.error('请先登录')
+            return
+        }
+
+        // 只有当前用户才能操作自己的喜欢列表中的点赞
+        if (!isCurrentUser) {
+            toast.error('只能操作自己的喜欢列表')
             return
         }
 
@@ -647,7 +684,7 @@ function TravelCard({
         }
     }
 
-    // 收藏/取消收藏
+    // 收藏/取消收藏（任何登录用户都可以操作）
     const handleToggleCollection = async (e: React.MouseEvent) => {
         e.stopPropagation()
 
@@ -685,50 +722,97 @@ function TravelCard({
         }
     }
 
+    // 格式化点赞时间
+    const formatLikeTime = (dateString?: string) => {
+        if (!dateString) return ''
+        const date = new Date(dateString)
+        const now = new Date()
+        const diff = now.getTime() - date.getTime()
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+
+        if (days === 0) return '今天'
+        if (days === 1) return '昨天'
+        if (days < 7) return `${days}天前`
+        return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+    }
+
     return (
         <div className="relative group">
             <Card
-                className="overflow-hidden hover:shadow-lg transition-all cursor-pointer"
+                className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
                 onClick={() => goToTravelDetail(travel.noteId)}
             >
                 {/* 封面图 */}
                 {travel.coverImg ? (
-                    <div className="h-48 bg-muted overflow-hidden">
+                    <div className="h-48 bg-muted overflow-hidden relative">
                         <img
                             src={travel.coverImg}
                             alt={travel.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
+                        {/* 点赞时间标签 */}
+                        <div className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                            <Heart className="w-3 h-3 inline mr-1 fill-current" />
+                            {formatLikeTime(like?.createdAt)}
+                        </div>
                     </div>
                 ) : (
-                    <div className="h-48 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                    <div className="h-48 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center relative">
                         <FileText className="w-16 h-16 text-primary/30" />
+                        <div className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
+                            <Heart className="w-3 h-3 inline mr-1 fill-current" />
+                            {formatLikeTime(like?.createdAt)}
+                        </div>
                     </div>
                 )}
 
                 <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-lg font-semibold flex-1 line-clamp-1">
-                            {travel.title}
-                        </h3>
-                        {isCurrentUser && travel.status === 0 && (
-                            <Badge variant="secondary" className="ml-2">草稿</Badge>
-                        )}
-                    </div>
+                    {/* 标题 */}
+                    <h3 className="text-lg font-semibold mb-2 line-clamp-2">
+                        {travel.title}
+                    </h3>
+
+                    {/* 内容预览 */}
                     {travel.content && (
                         <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
                             {travel.content}
                         </p>
                     )}
+
+                    {/* 作者信息 */}
+                    <div
+                        className="flex items-center gap-2 text-sm text-muted-foreground mb-3 cursor-pointer hover:text-foreground transition-colors"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            // 路由参数使用 userName，而不是 nickName
+                            if (travel.userName) {
+                                router.push(`/u/${travel.userName}`)
+                            }
+                        }}
+                    >
+                        <Avatar className="h-5 w-5">
+                            <AvatarImage src={travel.userAvatar} alt={travel.nickName || travel.userName} />
+                            <AvatarFallback className="text-xs">
+                                {(travel.nickName || travel.userName || 'U')?.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                        </Avatar>
+                        <span className="truncate">
+                            {travel.nickName || travel.userId}{' '}
+                            <span className="text-sm text-muted-foreground">@{travel.userName}</span>
+                        </span>
+                    </div>
+
+                    {/* 游玩天数 */}
                     {travel.travelDays && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
                             <Calendar className="w-4 h-4" />
                             <span>{travel.travelDays} 天行程</span>
                         </div>
                     )}
                 </CardContent>
 
-                <CardContent className="px-4 pb-4 pt-0 flex justify-between text-sm text-muted-foreground">
+                <CardFooter className="px-4 pb-4 pt-0 flex justify-between items-center text-sm text-muted-foreground">
+                    {/* 统计信息 */}
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-1">
                             <Eye className="w-4 h-4" />
@@ -736,20 +820,20 @@ function TravelCard({
                         </div>
                         <button
                             onClick={handleToggleLike}
-                            disabled={isProcessingLike}
+                            disabled={isProcessingLike || !isCurrentUser}
                             className={`flex items-center gap-1 hover:text-foreground transition-colors ${
                                 isLiked ? 'text-red-500' : ''
-                            } ${isProcessingLike ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            } ${isProcessingLike || !isCurrentUser ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
                             <span>{likeCount}</span>
                         </button>
                         <button
                             onClick={handleToggleCollection}
-                            disabled={isProcessingCollection}
+                            disabled={isProcessingCollection || !currentUser?.uuid}
                             className={`flex items-center gap-1 hover:text-foreground transition-colors ${
                                 isCollected ? 'text-yellow-500' : ''
-                            } ${isProcessingCollection ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            } ${isProcessingCollection || !currentUser?.uuid ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             <Bookmark className={`w-4 h-4 ${isCollected ? 'fill-current' : ''}`} />
                             <span>{collectionCount}</span>
@@ -759,23 +843,8 @@ function TravelCard({
                             <span>{travel.commentCount || 0}</span>
                         </div>
                     </div>
-                </CardContent>
+                </CardFooter>
             </Card>
-            {/* 作者操作菜单（仅当前用户可见） */}
-            {isCurrentUser && activeTab === 'travels' && (
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`/travels/${travel.noteId}/edit`)
-                        }}
-                    >
-                        <Settings className="w-4 h-4" />
-                    </Button>
-                </div>
-            )}
         </div>
     )
 }

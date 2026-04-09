@@ -63,6 +63,19 @@ export interface AllSearchResult {
     attractionTotal?: number
 }
 
+export interface SearchSuggestion {
+    keyword: string
+    type: 'destination' | 'attraction' | 'travel_note'
+    id?: string
+    extra?: string
+}
+
+export interface SaveSearchLogDTO {
+    keyword: string
+    searchType?: 'all' | 'destination' | 'travel_note' | 'attraction'
+    resultCount?: number
+}
+
 // ==================== 搜索 API ====================
 
 const SearchApi = {
@@ -95,23 +108,39 @@ const SearchApi = {
 
     /**
      * 获取搜索建议
-     * 注意：此接口需要后端实现
      */
     getSuggestions: async (keyword: string, limit = 10) => {
-        return request.get<{ data: string[] }>('/search/api/suggestions', {
+        return request.get<{ data: SearchSuggestion[] }>('/search/api/suggestions', {
             params: { keyword, limit }
         })
     },
 
     /**
      * 获取热门搜索词
-     * 注意：此接口需要后端实现
      */
     getHotKeywords: async (limit = 10) => {
         return request.get<{ data: string[] }>('/search/api/hot-keywords', {
             params: { limit }
         })
     },
+
+    /**
+     * 保存搜索记录
+     */
+    saveSearchLog: async (data: SaveSearchLogDTO) => {
+        return request.post('/search-log/api/save', data)
+    },
+
+    /**
+     * 获取用户搜索历史（服务器端）
+     */
+    getUserSearchHistory: async (limit = 10) => {
+        return request.get('/search-log/api/user-history', {
+            params: { limit }
+        })
+    },
 }
 
 export default SearchApi
+
+

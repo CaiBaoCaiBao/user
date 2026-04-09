@@ -163,11 +163,48 @@ export default function CreateTravelPage() {
             }
 
             await TravelApi.createTravel(createData)
-            toast.success('游记创建成功')
+            toast.success('游记创建成功，等待审核')
             router.push('/travels')
         } catch (error) {
             console.error('创建游记失败:', error)
             toast.error('创建游记失败')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    // 保存草稿
+    const handleSaveDraft = async () => {
+        if (!currentUser?.uuid) {
+            toast.error('请先登录')
+            return
+        }
+
+        // 草稿只需要标题
+        if (!formData.title.trim()) {
+            toast.error('请输入游记标题')
+            return
+        }
+
+        setLoading(true)
+        try {
+            const createData = {
+                userId: currentUser.uuid,
+                destinationId: formData.destinationId,
+                title: formData.title,
+                coverImg: formData.coverImg,
+                images: formData.images,
+                content: formData.content,
+                travelDays: formData.travelDays ? parseInt(formData.travelDays) : undefined,
+                budget: formData.budget ? parseFloat(formData.budget) : undefined,
+            }
+
+            await TravelApi.saveDraft(createData)
+            toast.success('草稿保存成功')
+            router.push('/travels')
+        } catch (error) {
+            console.error('保存草稿失败:', error)
+            toast.error('保存草稿失败')
         } finally {
             setLoading(false)
         }
@@ -384,8 +421,16 @@ export default function CreateTravelPage() {
                             >
                                 取消
                             </Button>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={handleSaveDraft}
+                                disabled={loading || uploading}
+                            >
+                                {loading ? '保存中...' : '保存草稿'}
+                            </Button>
                             <Button type="submit" disabled={loading || uploading}>
-                                {loading ? '创建中...' : '创建游记'}
+                                {loading ? '创建中...' : '发布游记'}
                             </Button>
                         </div>
                     </form>

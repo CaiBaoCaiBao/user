@@ -125,6 +125,13 @@ const refreshToken = async (): Promise<string | null> => {
 
 request.interceptors.request.use(
     async (config: InternalAxiosRequestConfig) => {
+        const url = config.url || '';
+        const token = tokenService.getAccessToken();
+
+        console.log('=== 请求拦截器 ===');
+        console.log('请求URL:', url);
+        console.log('Token存在:', !!token);
+
         // 不需要 token 的公开接口
         const noAuthUrls = [
             // 认证相关
@@ -146,8 +153,9 @@ request.interceptors.request.use(
             // 景点查询（游客可访问）
             '/attraction/api/list',
             '/attraction/api/detail',
-            // 游记查询（游客可访问）
+            // 游记查询（游客可访问列表，但详情需要身份验证以支持草稿）
             '/travel-note/api/list',
+            '/travel-note/api/hot',
             '/travel-note/api/detail',
             // 轮播图查询（游客可访问）
             '/banner/api/list',
@@ -155,18 +163,23 @@ request.interceptors.request.use(
             '/comment/api/list',
             '/comment/api/count',
             '/comment/api/count-by-target',
-            '/comment/api/batch-count'
+            '/comment/api/batch-count',
+            // 点赞查询接口（游客可访问）
+            '/like/api/list',
+            '/like/api/count',
+            '/like/api/batch-count'
         ];
-        const url = config.url || '';
 
         if (noAuthUrls.some(u => url.includes(u))) {
+            console.log('跳过添加token（公开接口）');
             return config;
         }
 
-        const token = tokenService.getAccessToken();
-
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+            console.log('已添加Authorization头');
+        } else {
+            console.log('警告：Token不存在，请求可能失败');
         }
 
         return config;
@@ -186,7 +199,21 @@ request.interceptors.response.use(
         // 如果后端返回 success: false，视为业务错误
         if (data && data.success === false) {
             const message = data.message || '请求失败';
-            toast.error(message);
+            const url = response.config.url || '';
+
+            // 对于某些特定的业务错误，不显示 toast 错误，让前端代码处理
+            const noToastErrors = [
+                '没有权限',
+                '请先登录',
+                '该游记已被驳回',
+            ];
+
+            const shouldShowToast = !noToastErrors.some(err => message.includes(err));
+
+            if (shouldShowToast) {
+                toast.error(message);
+            }
+
             return Promise.reject(new Error(message));
         }
 
@@ -217,12 +244,16 @@ request.interceptors.response.use(
                 '/attraction/api/list',
                 '/attraction/api/detail',
                 '/travel-note/api/list',
+                '/travel-note/api/hot',
                 '/travel-note/api/detail',
                 '/banner/api/list',
                 '/comment/api/list',
                 '/comment/api/count',
                 '/comment/api/count-by-target',
-                '/comment/api/batch-count'
+                '/comment/api/batch-count',
+                '/like/api/list',
+                '/like/api/count',
+                '/like/api/batch-count'
             ];
 
             if (noAuthUrls.some(u => url.includes(u))) {

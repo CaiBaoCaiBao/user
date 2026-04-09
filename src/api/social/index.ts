@@ -41,7 +41,7 @@ const CommentApi = {
      * 获取评论列表
      */
     getComments: async (params?: CommentListParams) => {
-        return request.get<{ data: Comment[]; total: number }>('/comment/api/list', { params })
+        return request.get<{ records: Comment[]; total: number }>('/comment/api/list', { params })
     },
 
     /**
@@ -67,11 +67,21 @@ const CommentApi = {
 }
 
 export interface Like {
-    id: number
+    id?: number
     likeId: string
     userId: string
     targetType: string
     targetId: string
+    targetTitle?: string
+    targetCover?: string
+    targetContent?: string
+    authorId?: string
+    authorName?: string
+    authorAvatar?: string
+    viewCount?: number
+    commentCount?: number
+    likeCount?: number
+    collectionCount?: number
     createdAt?: string
     updatedAt?: string
 }

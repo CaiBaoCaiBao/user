@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Eye, Heart, Bookmark, Calendar, User, MessageCircle } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Eye, Heart, Bookmark, Calendar, User, MessageCircle, Pin } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { SocialApi } from '@/api'
+import { SocialApi, TravelApi } from '@/api'
 import { useCurrentUser } from '@/store/userStore'
 import { toast } from 'sonner'
 import type { TravelInfo } from '@/api'
@@ -31,6 +32,7 @@ export default function TravelCard({
     const [likeCount, setLikeCount] = useState(travel.likeCount || 0)
     const [isProcessingLike, setIsProcessingLike] = useState(false)
     const [isProcessingCollection, setIsProcessingCollection] = useState(false)
+    const [isProcessingTop, setIsProcessingTop] = useState(false)
 
     // 获取点赞和收藏状态
     useEffect(() => {
@@ -158,6 +160,42 @@ export default function TravelCard({
         router.push(`/travels/${travel.noteId}`)
     }
 
+    // 置顶/取消置顶游记
+    const handleToggleTop = async (e: React.MouseEvent) => {
+        e.stopPropagation()
+
+        if (!currentUser?.uuid) {
+            toast.error('请先登录')
+            return
+        }
+
+        if (isProcessingTop) return
+
+        const wasTop = travel.isTop || false
+        setIsProcessingTop(true)
+
+        try {
+            await TravelApi.setTop({
+                noteId: travel.noteId,
+                isTop: !wasTop,
+            })
+
+            // 更新游记的置顶状态
+            if (onTravelUpdate) {
+                onTravelUpdate(travel.noteId, {
+                    isTop: !wasTop
+                })
+            }
+
+            toast.success(wasTop ? '已取消置顶' : '已置顶')
+        } catch (error) {
+            console.error('置顶失败:', error)
+            toast.error('操作失败')
+        } finally {
+            setIsProcessingTop(false)
+        }
+    }
+
     return (
         <Card
             className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
@@ -172,8 +210,19 @@ export default function TravelCard({
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                     {travel.status === 2 && (
-                        <Badge className="absolute top-2 right-2 bg-yellow-500">
-                            待审核
+                        <Badge className="absolute top-2 right-2 bg-red-500">
+                            已驳回
+                        </Badge>
+                    )}
+                    {travel.status === -1 && (
+                        <Badge className="absolute top-2 right-2 bg-gray-500">
+                            草稿
+                        </Badge>
+                    )}
+                    {travel.isTop && (
+                        <Badge className="absolute top-2 left-2 bg-yellow-500">
+                            <Pin className="h-3 w-3 mr-1 fill-current" />
+                            置顶
                         </Badge>
                     )}
                 </div>
@@ -194,8 +243,22 @@ export default function TravelCard({
 
                 {/* 作者信息 */}
                 {showAuthor && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                        <User className="w-4 h-4" />
+                    <div
+                        className="flex items-center gap-2 text-sm text-muted-foreground mb-3 cursor-pointer hover:text-foreground transition-colors"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            // 路由参数使用 userName，而不是 nickName
+                            if (travel.userName) {
+                                router.push(`/u/${travel.userName}`)
+                            }
+                        }}
+                    >
+                        <Avatar className="h-5 w-5">
+                            <AvatarImage src={travel.avatar} alt={travel.nickName || travel.userName} />
+                            <AvatarFallback className="text-xs">
+                                {(travel.nickName || travel.userName || 'U')?.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                        </Avatar>
                         <span className="truncate">
                             {travel.nickName || travel.userId}{" "}
                             <span className='text-sm text-muted-foreground'>@{travel.userName}</span>
@@ -213,43 +276,61 @@ export default function TravelCard({
             </CardContent>
 
             <CardFooter className="px-4 pb-4 pt-0 flex justify-between items-center">
-                {/* 统计信息 */}
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                        <Eye className="w-4 h-4" />
-                        <span>{travel.viewCount || 0}</span>
+                {/* 统计信息 - 只有已发布的游记才显示社交功能 */}
+                {travel.status === 1 ? (
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                            <Eye className="w-4 h-4" />
+                            <span>{travel.viewCount || 0}</span>
+                        </div>
+                        <button
+                            onClick={handleToggleLike}
+                            disabled={isProcessingLike}
+                            className={`flex items-center gap-1 hover:text-foreground transition-colors ${
+                                isLiked ? 'text-red-500' : ''
+                            } ${isProcessingLike ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+                            <span>{likeCount}</span>
+                        </button>
+                        <button
+                            onClick={handleToggleCollection}
+                            disabled={isProcessingCollection}
+                            className={`flex items-center gap-1 hover:text-foreground transition-colors ${
+                                isCollected ? 'text-yellow-500' : ''
+                            } ${isProcessingCollection ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            <Bookmark className={`w-4 h-4 ${isCollected ? 'fill-current' : ''}`} />
+                            <span>{travel.collectionCount || 0}</span>
+                        </button>
+                        <div className="flex items-center gap-1">
+                            <MessageCircle className="w-4 h-4" />
+                            <span>{travel.commentCount || 0}</span>
+                        </div>
                     </div>
-                    <button
-                        onClick={handleToggleLike}
-                        disabled={isProcessingLike}
-                        className={`flex items-center gap-1 hover:text-foreground transition-colors ${
-                            isLiked ? 'text-red-500' : ''
-                        } ${isProcessingLike ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                        <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
-                        <span>{likeCount}</span>
-                    </button>
-                    <button
-                        onClick={handleToggleCollection}
-                        disabled={isProcessingCollection}
-                        className={`flex items-center gap-1 hover:text-foreground transition-colors ${
-                            isCollected ? 'text-yellow-500' : ''
-                        } ${isProcessingCollection ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                        <Bookmark className={`w-4 h-4 ${isCollected ? 'fill-current' : ''}`} />
-                        <span>{travel.collectionCount || 0}</span>
-                    </button>
-                    <div className="flex items-center gap-1">
-                        <MessageCircle className="w-4 h-4" />
-                        <span>{travel.commentCount || 0}</span>
+                ) : (
+                    /* 非已发布状态提示 */
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        {travel.status === -1 && <span className="text-muted-foreground">草稿状态</span>}
+                        {travel.status === 0 && <span className="text-muted-foreground">待审核</span>}
+                        {travel.status === 2 && <span className="text-muted-foreground">已驳回</span>}
                     </div>
-                </div>
+                )}
 
-                {/* 操作按钮 */}
-                {showActions && (
-                    <Button variant="ghost" size="sm">
-                        查看详情
-                    </Button>
+                {/* 操作按钮 - 只有已发布的游记才能置顶 */}
+                {showActions && travel.status === 1 && (
+                    <div className="flex gap-2">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleToggleTop}
+                            disabled={isProcessingTop}
+                            className={`hover:bg-yellow-50 ${travel.isTop ? 'text-yellow-600' : ''}`}
+                        >
+                            <Pin className={`w-4 h-4 mr-1 ${travel.isTop ? 'fill-current' : ''}`} />
+                            {travel.isTop ? '取消' : '置顶'}
+                        </Button>
+                    </div>
                 )}
             </CardFooter>
         </Card>

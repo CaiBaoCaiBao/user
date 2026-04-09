@@ -190,6 +190,46 @@ export default function EditTravelPage() {
         }
     }
 
+    // 发布草稿
+    const handlePublishDraft = async () => {
+        // 验证表单
+        if (!formData.title.trim()) {
+            toast.error('请输入游记标题')
+            return
+        }
+        if (!formData.destinationId) {
+            toast.error('请选择目的地')
+            return
+        }
+        if (!formData.content.trim()) {
+            toast.error('请输入游记内容')
+            return
+        }
+
+        setLoading(true)
+        try {
+            const updateData = {
+                noteId,
+                destinationId: formData.destinationId,
+                title: formData.title,
+                coverImg: formData.coverImg,
+                images: formData.images,
+                content: formData.content,
+                travelDays: formData.travelDays ? parseInt(formData.travelDays) : undefined,
+                budget: formData.budget ? parseFloat(formData.budget) : undefined,
+            }
+
+            await TravelApi.publishDraft(updateData)
+            toast.success('发布成功，等待审核')
+            router.push(`/travels/${noteId}`)
+        } catch (error) {
+            console.error('发布草稿失败:', error)
+            toast.error('发布草稿失败')
+        } finally {
+            setLoading(false)
+        }
+    }
+
     if (initialLoading) {
         return (
             <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -401,8 +441,16 @@ export default function EditTravelPage() {
                             >
                                 取消
                             </Button>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={handlePublishDraft}
+                                disabled={loading || uploading}
+                            >
+                                {loading ? '发布中...' : '发布游记'}
+                            </Button>
                             <Button type="submit" disabled={loading || uploading}>
-                                {loading ? '更新中...' : '更新游记'}
+                                {loading ? '更新中...' : '保存修改'}
                             </Button>
                         </div>
                     </form>

@@ -109,19 +109,16 @@ export default function Collections() {
 
         // 并行获取所有详情
         const [travelsRes, destinationsRes, spotsRes] = await Promise.allSettled([
-            travelIds.length > 0 ? TravelApi.getBatchTravelDetail(travelIds) : Promise.resolve({ data: { data: [] } }),
+            travelIds.length > 0 ? Promise.all(travelIds.map(id => TravelApi.getTravelById(id))) : Promise.resolve([]),
             destinationIds.length > 0 ? Promise.all(destinationIds.map(id => DestinationApi.getDestinationById(id))) : Promise.resolve([]),
             spotIds.length > 0 ? Promise.all(spotIds.map(id => SpotApi.getSpotById(id))) : Promise.resolve([]),
         ])
 
         // 处理游记详情
-        if (travelsRes.status === 'fulfilled' && travelsRes.value.data?.data) {
+        if (travelsRes.status === 'fulfilled') {
             const travelMap = new Map<string, TravelDetail>()
-            const travelData = Array.isArray(travelsRes.value.data.data)
-                ? travelsRes.value.data.data
-                : [travelsRes.value.data.data]
-
-            travelData.forEach((travel: any) => {
+            travelsRes.value.forEach((res: any) => {
+                const travel = res.data?.data
                 if (travel?.noteId) {
                     travelMap.set(travel.noteId, travel)
                 }

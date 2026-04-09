@@ -94,11 +94,12 @@ export default function Travels({ initialKeyword = '' }: TravelsProps) {
                             return {
                                 userId,
                                 userName: userResponse.data.data?.userName,
-                                nickName: userResponse.data.data?.nickName
+                                nickName: userResponse.data.data?.nickName,
+                                avatar: userResponse.data.data?.avatar
                             }
                         } catch (error) {
                             console.error('获取用户信息失败:', userId, error)
-                            return { userId, userName: null, nickName: null }
+                            return { userId, userName: null, nickName: null, avatar: null }
                         }
                     })
 
@@ -108,13 +109,14 @@ export default function Travels({ initialKeyword = '' }: TravelsProps) {
                     // 创建用户信息映射
                     const userInfoMap = new Map(userInfoList.map(info => [info.userId, info]))
 
-                    // 为每个游记设置用户信息
+                    // 为每个游记设置用户信息（只补充缺失的字段）
                     const updatedTravels = travelData.map(travel => {
                         const userInfo = userInfoMap.get(travel.userId)
                         return {
                             ...travel,
-                            userName: userInfo?.userName || travel.userName,
-                            nickName: userInfo?.nickName || travel.nickName
+                            userName: travel.userName || userInfo?.userName,
+                            nickName: travel.nickName || userInfo?.nickName,
+                            userAvatar: travel.avatar || travel.userAvatar || userInfo?.avatar
                         }
                     })
 
@@ -125,7 +127,13 @@ export default function Travels({ initialKeyword = '' }: TravelsProps) {
                     setTravels(travelData)
                 }
             } else {
-                setTravels(Array.isArray(travelData) ? travelData : [])
+                // 后端已返回用户信息，直接使用后端数据
+                // 将 avatar 字段映射为 userAvatar
+                const updatedTravels = travelData.map(travel => ({
+                    ...travel,
+                    userAvatar: travel.avatar || travel.userAvatar
+                }))
+                setTravels(Array.isArray(updatedTravels) ? updatedTravels : [])
             }
 
             setTotal(pageData?.total || 0)

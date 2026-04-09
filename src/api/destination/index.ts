@@ -24,6 +24,32 @@ export interface Destination {
     updatedAt?: string
 }
 
+export interface DestinationDetail extends Destination {
+    tags?: TagVO[]
+    attractions?: AttractionSimpleVO[]
+}
+
+export interface TagVO {
+    id: number
+    tid: string
+    tagName: string
+    tagCode?: string
+    iconUrl?: string
+    color?: string
+    weight?: number
+    recommendFlag?: boolean
+}
+
+export interface AttractionSimpleVO {
+    id: number
+    aid: string
+    name: string
+    coverImg?: string
+    description?: string
+    viewCount?: number
+    sortOrder?: number
+}
+
 export interface DestinationListParams {
     page?: number
     pageSize?: number
@@ -64,7 +90,7 @@ const DestinationApi = {
      * 获取目的地详情
      */
     getDestinationById: async (destinationId: string) => {
-        return request.get<{ data: Destination }>('/destination/api/detail', {
+        return request.get<{ data: DestinationDetail }>('/destination/api/detail', {
             params: { destinationId }
         })
     },
@@ -88,6 +114,13 @@ const DestinationApi = {
      */
     deleteDestination: async (data: any) => {
         return request.delete('/destination/api/delete', { data })
+    },
+
+    /**
+     * 增加目的地浏览数
+     */
+    incrementViewCount: async (destinationId: string) => {
+        return request.post('/destination/api/increment-view', { destinationId })
     },
 }
 

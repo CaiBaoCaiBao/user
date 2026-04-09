@@ -13,12 +13,13 @@ import { toast } from 'sonner'
 import type { Comment } from '@/api'
 import Link from 'next/link'
 
-interface TravelCommentsProps {
-    noteId: string
+interface CommentsProps {
+    targetType: 'travel_note' | 'destination' | 'attraction'
+    targetId: string
     commentCount?: number
 }
 
-export default function TravelComments({ noteId, commentCount = 0 }: TravelCommentsProps) {
+export default function Comments({ targetType, targetId, commentCount = 0 }: CommentsProps) {
     const currentUser = useCurrentUser()
     const [submitting, setSubmitting] = useState(false)
     const [content, setContent] = useState('')
@@ -31,28 +32,28 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
     const pageSize = 10
     const [collapsedReplies, setCollapsedReplies] = useState<Set<string>>(new Set())
     const loadMoreRef = useRef<HTMLDivElement>(null)
-    const currentNoteIdRef = useRef<string>(noteId)
+    const currentTargetIdRef = useRef<string>(targetId)
     const observerRef = useRef<IntersectionObserver | null>(null)
 
     // SWR fetcher 函数
     const fetchComments = useCallback(async (pageNum: number) => {
         const response = await SocialApi.getComments({
-            targetType: 'travel_note',
-            targetId: noteId,
+            targetType,
+            targetId,
             page: pageNum,
             pageSize,
         })
         return response.data.data as { records: Comment[]; total: number }
-    }, [noteId, pageSize])
+    }, [targetType, targetId, pageSize])
 
     // 使用 SWR 获取评论数据
     const { data, error, isLoading, mutate } = useSWR(
-        `/comments/${noteId}/${page}`,
+        `/comments/${targetType}/${targetId}/${page}`,
         () => fetchComments(page),
         {
             revalidateOnFocus: false,
             revalidateOnReconnect: false,
-            dedupingInterval: 5000, // 5秒内不重复请求
+            dedupingInterval: 5000,
             shouldRetryOnError: true,
             errorRetryCount: 3,
             errorRetryInterval: 1000,
@@ -70,31 +71,17 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
         try {
             const nextPage = page + 1
             const result = await fetchComments(nextPage)
-            console.log('加载更多评论结果:', {
-                page: nextPage,
-                listLength: result.records.length,
-                total: result.total
-            })
 
             if (result.records.length > 0) {
                 setAllComments(prev => {
                     const existingIds = new Set(prev.map(c => c.commentId))
                     const newComments = result.records.filter(c => !existingIds.has(c.commentId))
                     const newAllComments = [...prev, ...newComments]
-                    console.log('更新评论列表:', {
-                        prevLength: prev.length,
-                        newCommentsLength: newComments.length,
-                        newAllCommentsLength: newAllComments.length,
-                        total: result.total,
-                        hasMore: result.total > newAllComments.length
-                    })
-                    // 根据 total 判断是否还有更多数据
                     setHasMore(result.total > newAllComments.length)
                     return newAllComments
                 })
                 setPage(nextPage)
             } else {
-                console.log('没有更多评论了')
                 setHasMore(false)
             }
         } catch (error) {
@@ -103,32 +90,20 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
         } finally {
             setIsLoadingMore(false)
         }
-    }, [hasMore, isLoadingMore, fetchComments])
+    }, [hasMore, isLoadingMore, fetchComments, page])
 
     // 初始化评论数据
     useEffect(() => {
-        // 只在第一页且有数据时初始化
         if (data && page === 1 && data.records) {
-            console.log('初始化评论数据:', {
-                noteId,
-                listLength: data.records.length,
-                total: data.total
-            })
             setAllComments(data.records)
-            // 根据 total 判断是否还有更多数据
             setHasMore(data.total > data.records.length)
-            // 更新当前 noteId
-            currentNoteIdRef.current = noteId
+            currentTargetIdRef.current = targetId
         }
-    }, [data, page, noteId])
+    }, [data, page, targetId])
 
     // 无限滚动观察器
     useEffect(() => {
-        console.log('观察器 useEffect 触发:', { hasMore, allCommentsLength: allComments.length, isLoadingMore })
-        // 只有在有评论数据且还有更多数据时才创建观察器
         if (!hasMore || allComments.length === 0) {
-            console.log('跳过观察器创建:', { hasMore, allCommentsLength: allComments.length })
-            // 清理旧的观察器
             if (observerRef.current) {
                 observerRef.current.disconnect()
                 observerRef.current = null
@@ -136,21 +111,13 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
             return
         }
 
-        // 如果观察器已存在，先清理
         if (observerRef.current) {
             observerRef.current.disconnect()
         }
 
         const observer = new IntersectionObserver(
             (entries) => {
-                console.log('观察器回调触发:', {
-                    isIntersecting: entries[0].isIntersecting,
-                    hasMore,
-                    isLoadingMore,
-                    target: entries[0].target
-                })
                 if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-                    console.log('调用 loadMore')
                     loadMore()
                 }
             },
@@ -159,37 +126,31 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
 
         observerRef.current = observer
 
-        // 使用 setTimeout 确保 DOM 已更新
         const timer = setTimeout(() => {
             const currentRef = loadMoreRef.current
-            console.log('setTimeout 回调执行，loadMoreRef.current:', currentRef)
             if (currentRef) {
-                console.log('开始观察元素:', currentRef)
                 observer.observe(currentRef)
-            } else {
-                console.log('loadMoreRef 元素不存在')
             }
         }, 200)
 
         return () => {
             clearTimeout(timer)
             if (observerRef.current) {
-                console.log('取消观察元素')
                 observerRef.current.disconnect()
                 observerRef.current = null
             }
         }
     }, [hasMore, isLoadingMore, allComments.length, loadMore])
 
-    // 重置评论列表（当 noteId 变化时）
+    // 重置评论列表（当 targetId 变化时）
     useEffect(() => {
-        if (currentNoteIdRef.current !== noteId) {
+        if (currentTargetIdRef.current !== targetId) {
             setPage(1)
             setAllComments([])
             setHasMore(true)
             setCollapsedReplies(new Set())
         }
-    }, [noteId])
+    }, [targetId])
 
     // 提交评论
     const handleSubmit = async (parentCommentId?: string) => {
@@ -207,8 +168,8 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
         setSubmitting(true)
         try {
             await SocialApi.createComment({
-                targetType: 'travel_note',
-                targetId: noteId,
+                targetType,
+                targetId,
                 parentCommentId,
                 content: commentContent.trim(),
             })
@@ -219,7 +180,6 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
             setPage(1)
             setAllComments([])
             setHasMore(true)
-            // 使用 SWR 的 mutate 重新获取数据，并等待完成
             await mutate()
         } catch (error) {
             console.error('评论失败:', error)
@@ -236,7 +196,6 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
             return
         }
         try {
-            // 乐观更新 - 同时更新 SWR 数据和本地状态
             const optimisticUpdate = (comment: Comment) => {
                 if (comment.commentId === commentId) {
                     const newIsLiked = !comment.isLiked
@@ -250,7 +209,6 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
                 return comment
             }
 
-            // 更新 SWR 数据
             mutate(
                 (currentData) => {
                     if (!currentData) return currentData
@@ -259,22 +217,19 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
                         records: currentData.records.map(optimisticUpdate)
                     }
                 },
-                false // 不立即重新验证
+                false
             )
 
-            // 更新本地 allComments 状态
             setAllComments(prev => prev.map(optimisticUpdate))
 
             await SocialApi.toggleLike({
                 targetType: 'comment',
                 targetId: commentId,
             })
-            // 成功后重新获取数据
             await mutate()
         } catch (error) {
             console.error('点赞失败:', error)
             toast.error('点赞失败')
-            // 失败时重新获取评论列表以恢复状态
             await mutate()
         }
     }
@@ -289,15 +244,11 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
             })
             toast.success('删除成功')
             
-            // 从本地状态中移除已删除的评论
             setAllComments(prev => {
-                // 先移除评论本身
                 const filtered = prev.filter(c => c.commentId !== commentId)
-                // 再移除该评论的所有回复
                 return filtered.filter(c => c.parentCommentId !== commentId)
             })
             
-            // 重新获取数据以保持同步
             await mutate()
         } catch (error) {
             console.error('删除失败:', error)
@@ -372,32 +323,25 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
         const repliesMap = new Map<string, Comment[]>()
         const commentMap = new Map<string, Comment>()
 
-        // 创建评论映射，方便查找
         allComments.forEach(comment => {
             commentMap.set(comment.commentId, comment)
         })
 
-        // 分离顶级评论和回复评论
         allComments.forEach(comment => {
             if (!comment.parentCommentId) {
-                // 顶级评论
                 topLevelComments.push(comment)
             } else {
-                // 回复评论：找到其顶级评论
                 let currentComment = comment
                 let topLevelId = comment.parentCommentId
 
-                // 向上查找顶级评论
                 while (topLevelId && commentMap.has(topLevelId)) {
                     const parentComment = commentMap.get(topLevelId)!
                     if (!parentComment.parentCommentId) {
-                        // 找到顶级评论
                         break
                     }
                     topLevelId = parentComment.parentCommentId
                 }
 
-                // 将回复归类到顶级评论下
                 if (topLevelId) {
                     if (!repliesMap.has(topLevelId)) {
                         repliesMap.set(topLevelId, [])
@@ -410,22 +354,19 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
         return { topLevelComments, repliesMap, commentMap }
     }, [allComments])
 
-    // 默认收起新出现的回复（保留已有评论的展开/收起状态）
+    // 默认收起新出现的回复
     useEffect(() => {
         const currentIds = topLevelComments.map(c => c.commentId).sort()
         const prevIds = Array.from(collapsedReplies).sort()
 
-        // 只有当评论 ID 列表真正变化时才更新状态
         if (JSON.stringify(currentIds) !== JSON.stringify(prevIds)) {
             setCollapsedReplies(prev => {
                 const newSet = new Set(prev)
-                // 只对新出现的顶级评论设置为收起
                 topLevelComments.forEach(comment => {
                     if (!newSet.has(comment.commentId)) {
                         newSet.add(comment.commentId)
                     }
                 })
-                // 移除已经不存在的评论ID
                 const currentIdSet = new Set(topLevelComments.map(c => c.commentId))
                 for (const id of newSet) {
                     if (!currentIdSet.has(id)) {
@@ -603,7 +544,6 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
                                 {repliesMap.get(comment.commentId) && repliesMap.get(comment.commentId)!.length > 0 && !collapsedReplies.has(comment.commentId) && (
                                     <div className="mt-4 ml-12 space-y-4 border-l-2 border-muted pl-4">
                                         {repliesMap.get(comment.commentId)!.map((reply) => {
-                                            // 查找被回复的用户
                                             const repliedUser = reply.parentCommentId ? commentMap.get(reply.parentCommentId) : null
                                             const repliedUserName = repliedUser?.nickname || repliedUser?.username || '用户'
 
