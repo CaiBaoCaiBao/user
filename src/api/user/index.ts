@@ -103,7 +103,7 @@ const UserApi = {
     uploadAvatar: async (file: File) => {
         const formData = new FormData()
         formData.append('file', file)
-        return request.post<{ data: { url: string } }>('/file/api/upload', formData, {
+        return request.post<{ data: { url: string } }>('/user/api/upload-avatar', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },

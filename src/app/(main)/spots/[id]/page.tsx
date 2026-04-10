@@ -688,7 +688,6 @@ export default function SpotDetailPage() {
                                                         )}
                                                         {(item.price || item.discountPrice) && (
                                                             <div className="flex items-center gap-2 pt-2 border-t">
-                                                                <DollarSign className="w-4 h-4 text-green-600" />
                                                                 {item.discountPrice && Number(item.discountPrice) > 0 && Number(item.discountPrice) < Number(item.price || 0) ? (
                                                                     <>
                                                                         <span className="text-sm text-muted-foreground line-through">

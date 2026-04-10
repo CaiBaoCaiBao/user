@@ -48,7 +48,7 @@ export default function EditTravelPage() {
     const fetchTravelDetail = async () => {
         try {
             setInitialLoading(true)
-            const response = await TravelApi.getTravelById(noteId)
+            const response = await TravelApi.getMyTravelById(noteId)
             const travel = response.data.data
 
             // 检查权限

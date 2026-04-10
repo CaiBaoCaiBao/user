@@ -85,9 +85,9 @@ export default function EditProfilePage() {
         try {
             setUploading(true)
             const response = await UserApi.uploadAvatar(file)
-
+            console.log("response",response)
             if (response.data.success) {
-                setProfile({ ...profile, avatar: response.data.data.url })
+                setProfile({ ...profile, avatar: response.data.data })
                 toast.success('头像上传成功')
             } else {
                 toast.error(response.data.message || '头像上传失败')

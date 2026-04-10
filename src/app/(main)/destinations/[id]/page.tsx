@@ -382,11 +382,11 @@ export default function DestinationDetailPage() {
 
                         {/* 标签页 */}
                         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-                            <TabsList className="grid w-full max-w-md mx-auto grid-cols-4">
+                            <TabsList className="grid w-full max-w-md mx-auto grid-cols-3">
                                 <TabsTrigger value="info">详细信息</TabsTrigger>
                                 <TabsTrigger value="attractions">景点 ({attractionsCount})</TabsTrigger>
                                 <TabsTrigger value="travels">游记 ({travels.length})</TabsTrigger>
-                                <TabsTrigger value="comments">评论</TabsTrigger>
+                                {/* <TabsTrigger value="comments">评论</TabsTrigger> */}
                             </TabsList>
 
                             <TabsContent value="info" className="mt-6">
@@ -614,12 +614,12 @@ export default function DestinationDetailPage() {
                                 )}
                             </TabsContent>
 
-                            <TabsContent value="comments" className="mt-6">
+                            {/* <TabsContent value="comments" className="mt-6">
                                 <Comments
                                     targetType="destination"
                                     targetId={destinationId}
                                 />
-                            </TabsContent>
+                            </TabsContent> */}
                         </Tabs>
                     </div>
 
