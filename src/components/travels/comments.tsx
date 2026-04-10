@@ -285,7 +285,7 @@ export default function TravelComments({ noteId, commentCount = 0 }: TravelComme
 
         try {
             await SocialApi.deleteComment({
-                commentId: commentId,
+                commentIds: [commentId],
             })
             toast.success('删除成功')
             

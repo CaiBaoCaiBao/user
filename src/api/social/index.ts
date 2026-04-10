@@ -48,14 +48,15 @@ const CommentApi = {
      * 创建评论
      */
     createComment: async (data: CreateCommentDTO) => {
+        
         return request.post('/comment/api/create', data)
     },
 
     /**
      * 删除评论
      */
-    deleteComment: async (data: any) => {
-        return request.delete('/comment/api/delete', { data })
+    deleteComment: async (data: { commentIds: string[] }) => {
+        return request.post('/comment/api/delete', data)
     },
 
     /**

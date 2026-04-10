@@ -240,7 +240,7 @@ export default function Comments({ targetType, targetId, commentCount = 0 }: Com
 
         try {
             await SocialApi.deleteComment({
-                commentId: commentId,
+                commentIds: [commentId],
             })
             toast.success('删除成功')
             
